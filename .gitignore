@@ -1,4 +1,8 @@
 # Build and Release Folders
+node_modules/
+.env
+*.log
+.DS_Store
 bin-debug/
 bin-release/
 [Oo]bj/
