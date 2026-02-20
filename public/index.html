@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIPHER — Crypto & NFT Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090b10;
+    --bg2: #0e1118;
+    --bg3: #141821;
+    --card: #111620;
+    --card2: #181f2e;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.1);
+    --cyan: #00f5c4;
+    --cyan2: #00c9a7;
+    --purple: #7b5ea7;
+    --pink: #e040fb;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --muted2: #8892a4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,196,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,196,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  .orb1 { width: 500px; height: 500px; background: rgba(0,245,196,0.06); top: -150px; right: 10%; }
+  .orb2 { width: 400px; height: 400px; background: rgba(123,94,167,0.08); bottom: -100px; left: 5%; animation-delay: -4s; }
+  .orb3 { width: 300px; height: 300px; background: rgba(224,64,251,0.05); top: 40%; left: 40%; animation-delay: -8s; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(30px, 20px) scale(1.1); }
+  }
+
+  /* Layout */
+  .app {
+    display: flex;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: rgba(14, 17, 24, 0.8);
+    border-right: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    padding: 28px 0;
+    position: fixed;
+    height: 100vh;
+    left: 0;
+    top: 0;
+  }
+
+  .logo {
+    padding: 0 24px 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    position: relative;
+  }
+
+  .logo-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+  }
+
+  .nav-section {
+    padding: 0 12px;
+    flex: 1;
+  }
+
+  .nav-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0 12px;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted2);
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    position: relative;
+    text-decoration: none;
+  }
+
+  .nav-item:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+  }
+
+  .nav-item.active {
+    background: rgba(0,245,196,0.08);
+    color: var(--cyan);
+  }
+
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: var(--cyan);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .badge {
+    margin-left: auto;
+    background: rgba(0,245,196,0.15);
+    color: var(--cyan);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .sidebar-bottom {
+    padding: 20px 16px 0;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--card2);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+  }
+
+  .user-card:hover { border-color: var(--border2); }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--bg);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .avatar::after {
+    content: '';
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    border: 2px solid var(--card2);
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 10px; color: var(--muted2); }
+
+  /* Main */
+  .main {
+    flex: 1;
+    margin-left: 220px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(9,11,16,0.9);
+    backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    gap: 16px;
+  }
+
+  .greeting {
+    flex: 1;
+  }
+
+  .greeting h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text);
+  }
+
+  .greeting p {
+    font-size: 11px;
+    color: var(--muted2);
+    margin-top: 2px;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    width: 220px;
+    transition: all 0.2s;
+  }
+
+  .search-bar:focus-within {
+    border-color: rgba(0,245,196,0.3);
+    box-shadow: 0 0 0 3px rgba(0,245,196,0.05);
+  }
+
+  .search-bar input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    width: 100%;
+  }
+
+  .search-bar input::placeholder { color: var(--muted); }
+  .search-bar svg { color: var(--muted); flex-shrink: 0; }
+
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted2);
+    position: relative;
+  }
+
+  .icon-btn:hover { border-color: var(--border2); color: var(--text); }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  .notif-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    background: var(--cyan);
+    border-radius: 50%;
+    border: 1.5px solid var(--bg);
+  }
+
+  /* Content */
+  .content {
+    padding: 24px 28px;
+    display: flex;
+    gap: 24px;
+  }
+
+  .center-col { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+  .right-col { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
+
+  /* Stat Cards Row */
+  .stat-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.25s;
+    cursor: pointer;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.1s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stat-card:hover {
+    border-color: var(--border2);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,245,196,0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .stat-card:hover::after { opacity: 1; }
+
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(0,245,196,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    color: var(--cyan);
+  }
+
+  .stat-icon svg { width: 15px; height: 15px; }
+  .stat-label { font-size: 10px; color: var(--muted2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-sub { font-size: 10px; color: var(--muted2); margin-top: 4px; }
+
+  /* Donut cards grid */
+  .donut-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .donut-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .donut-card:nth-child(1) { animation-delay: 0.2s; }
+  .donut-card:nth-child(2) { animation-delay: 0.25s; }
+  .donut-card:nth-child(3) { animation-delay: 0.3s; }
+  .donut-card:nth-child(4) { animation-delay: 0.35s; }
+
+  .donut-card:hover {
+    border-color: var(--border2);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+
+  .donut-card.highlight {
+    background: linear-gradient(135deg, rgba(0,245,196,0.07), rgba(0,245,196,0.02));
+    border-color: rgba(0,245,196,0.18);
+  }
+
+  .donut-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .donut-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .donut-subtitle {
+    font-size: 10px;
+    color: var(--muted2);
+    margin-top: 2px;
+  }
+
+  .trend-badge {
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 20px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .trend-up { background: rgba(0,245,196,0.1); color: var(--cyan); }
+  .trend-down { background: rgba(224,64,251,0.1); color: var(--pink); }
+
+  .donut-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .donut-amount {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--text);
+  }
+
+  /* SVG Donut */
+  .donut-wrap {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+  }
+
+  .donut-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .donut-wrap svg {
+    width: 64px;
+    height: 64px;
+    transform: rotate(-90deg);
+  }
+
+  .donut-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 6; }
+  .donut-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* Right column */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .panel-title span {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--cyan);
+    cursor: pointer;
+  }
+
+  .rev-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .rev-item:last-child { border-bottom: none; }
+  .rev-item:hover { padding-left: 4px; }
+
+  .rev-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .rev-info { flex: 1; }
+  .rev-name { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; color: var(--text); }
+  .rev-sub { font-size: 10px; color: var(--muted2); margin-top: 1px; }
+  .rev-val { text-align: right; }
+  .rev-amount { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
+  .rev-change { font-size: 10px; }
+  .pos { color: var(--cyan); }
+  .neg { color: var(--pink); }
+
+  /* Bar chart */
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+    margin-top: 8px;
+  }
+
+  .bar-group { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+
+  .bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+    transition: all 0.3s;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .bar:hover { filter: brightness(1.3); }
+  .bar-label { font-size: 9px; color: var(--muted); text-align: center; }
+  .bar-val { font-size: 9px; color: var(--muted2); margin-bottom: 2px; }
+
+  /* NFT strip */
+  .nft-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  .nft-strip::-webkit-scrollbar { display: none; }
+
+  .nft-card {
+    min-width: 100px;
+    border-radius: 10px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s;
+    flex-shrink: 0;
+  }
+
+  .nft-card:hover {
+    border-color: rgba(0,245,196,0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  .nft-thumb {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nft-info { padding: 8px; }
+  .nft-name { font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nft-price { font-size: 9px; color: var(--cyan); margin-top: 2px; }
+
+  /* Ticker */
+  .ticker-bar {
+    background: rgba(0,245,196,0.04);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    height: 32px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ticker-inner {
+    display: flex;
+    gap: 40px;
+    animation: scroll 30s linear infinite;
+    white-space: nowrap;
+    padding: 0 20px;
+  }
+
+  .ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .ticker-sym { color: var(--cyan); font-weight: 500; }
+  .ticker-price { color: var(--text); }
+
+  @keyframes scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,245,196,0.1); }
+    50% { box-shadow: 0 0 40px rgba(0,245,196,0.25); }
+  }
+
+  .pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .pill-btn.primary {
+    background: var(--cyan);
+    color: var(--bg);
+    font-weight: 500;
+  }
+
+  .pill-btn.primary:hover { background: var(--cyan2); }
+
+  .pill-btn.ghost {
+    background: transparent;
+    border-color: var(--border2);
+    color: var(--muted2);
+  }
+
+  .pill-btn.ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* Pulse animation on donut cards */
+  .donut-card.highlight {
+    animation: fadeUp 0.5s ease both, pulseGlow 4s ease-in-out infinite;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 32 32" fill="none">
+          <polygon points="16,2 30,10 30,22 16,30 2,22 2,10" stroke="#00f5c4" stroke-width="1.5" fill="rgba(0,245,196,0.08)"/>
+          <polygon points="16,8 24,13 24,19 16,24 8,19 8,13" stroke="#00f5c4" stroke-width="1" fill="rgba(0,245,196,0.12)"/>
+          <circle cx="16" cy="16" r="3" fill="#00f5c4"/>
+        </svg>
+      </div>
+      <span class="logo-text">CIPHER</span>
+    </div>
+
+    <nav class="nav-section">
+      <div class="nav-label">Main</div>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Overview
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Markets
+        <span class="badge">LIVE</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        NFTs
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        History
+      </a>
+      <a class="nav-item" href="#" id="nav-alerts" onclick="openAlerts(); return false;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Alerts
+        <span class="badge" id="alert-count-badge">3</span>
+      </a>
+
+      <div class="nav-label">Tools</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+        Portfolio
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        Wallet
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="user-card">
+        <div class="avatar">DM</div>
+        <div class="user-info">
+          <div class="user-name">David Milan</div>
+          <div class="user-role">Pro Trader</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5a6070" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Ticker -->
+    <div class="ticker-bar">
+      <div class="ticker-inner">
+        <!-- Repeated for seamless loop -->
+        <span class="ticker-item"><span class="ticker-sym">BTC</span><span class="ticker-price">$67,482.10</span><span class="pos">+2.4%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">ETH</span><span class="ticker-price">$3,891.45</span><span class="pos">+1.8%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">SOL</span><span class="ticker-price">$184.22</span><span class="pos">+5.2%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">MATIC</span><span class="ticker-price">$0.892</span><span class="neg">-0.6%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">AVAX</span><span class="ticker-price">$38.11</span><span class="pos">+3.1%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">LINK</span><span class="ticker-price">$14.78</span><span class="pos">+1.2%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">DOT</span><span class="ticker-price">$8.24</span><span class="neg">-1.3%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">ADA</span><span class="ticker-price">$0.614</span><span class="neg">-0.9%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">DOGE</span><span class="ticker-price">$0.1124</span><span class="pos">+4.7%</span></span>
+        <!-- Duplicate -->
+        <span class="ticker-item"><span class="ticker-sym">BTC</span><span class="ticker-price">$67,482.10</span><span class="pos">+2.4%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">ETH</span><span class="ticker-price">$3,891.45</span><span class="pos">+1.8%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">SOL</span><span class="ticker-price">$184.22</span><span class="pos">+5.2%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">MATIC</span><span class="ticker-price">$0.892</span><span class="neg">-0.6%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">AVAX</span><span class="ticker-price">$38.11</span><span class="pos">+3.1%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">LINK</span><span class="ticker-price">$14.78</span><span class="pos">+1.2%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">DOT</span><span class="ticker-price">$8.24</span><span class="neg">-1.3%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">ADA</span><span class="ticker-price">$0.614</span><span class="neg">-0.9%</span></span>
+        <span class="ticker-item"><span class="ticker-sym">DOGE</span><span class="ticker-price">$0.1124</span><span class="pos">+4.7%</span></span>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="greeting">
+        <h1>Hello, David 👋</h1>
+        <p>Your portfolio is up <span style="color:var(--cyan)">+12.4%</span> this week &nbsp;·&nbsp; <span id="last-refresh" style="color:var(--muted);font-size:10px;">Connecting to API…</span></p>
+      </div>
+      <div class="search-bar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search tokens, NFTs…">
+      </div>
+      <div class="header-actions">
+        <div class="icon-btn" onclick="openAlerts()" title="Price Alerts" style="position:relative">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-dot" id="header-notif-dot"></span>
+        </div>
+        <div class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+        </div>
+        <button class="pill-btn primary">+ Deposit</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="center-col">
+
+        <!-- Filter row -->
+        <div class="filter-row">
+          <button class="pill-btn primary">All Assets</button>
+          <button class="pill-btn ghost">DeFi</button>
+          <button class="pill-btn ghost">NFTs</button>
+          <button class="pill-btn ghost">Layer 1</button>
+          <button class="pill-btn ghost">Stablecoins</button>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="stat-label">Portfolio Value</div>
+            <div class="stat-value">$84.2k</div>
+            <div class="stat-sub" style="color:var(--cyan)">▲ +$9,840 today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(123,94,167,0.1); color:var(--purple)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div class="stat-label">NFT Holdings</div>
+            <div class="stat-value">47</div>
+            <div class="stat-sub">Floor: <span style="color:var(--cyan)">12.4 ETH</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(224,64,251,0.1); color:var(--pink)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="stat-label">24h Volume</div>
+            <div class="stat-value">$12.1k</div>
+            <div class="stat-sub" style="color:var(--pink)">▼ -3.2% vs yesterday</div>
+          </div>
+        </div>
+
+        <!-- 4 donut cards -->
+        <div class="donut-grid">
+          <!-- BTC -->
+          <div class="donut-card highlight">
+            <div class="donut-header">
+              <div>
+                <div class="donut-title">Bitcoin</div>
+                <div class="donut-subtitle">BTC · Spot</div>
+              </div>
+              <span class="trend-badge trend-up">↑ 2.4%</span>
+            </div>
+            <div class="donut-footer">
+              <div class="donut-amount">$38,400</div>
+              <div class="donut-wrap">
+                <svg viewBox="0 0 64 64">
+                  <circle class="donut-bg" cx="32" cy="32" r="28"/>
+                  <circle class="donut-fg" cx="32" cy="32" r="28"
+                    stroke="#00f5c4"
+                    stroke-dasharray="175.93"
+                    stroke-dashoffset="52.78"/>
+                </svg>
+                <div class="donut-pct">70%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETH -->
+          <div class="donut-card">
+            <div class="donut-header">
+              <div>
+                <div class="donut-title">Ethereum</div>
+                <div class="donut-subtitle">ETH · Staked</div>
+              </div>
+              <span class="trend-badge trend-up">↑ 1.8%</span>
+            </div>
+            <div class="donut-footer">
+              <div class="donut-amount">$22,100</div>
+              <div class="donut-wrap">
+                <svg viewBox="0 0 64 64">
+                  <circle class="donut-bg" cx="32" cy="32" r="28"/>
+                  <circle class="donut-fg" cx="32" cy="32" r="28"
+                    stroke="#7b5ea7"
+                    stroke-dasharray="175.93"
+                    stroke-dashoffset="79.17"/>
+                </svg>
+                <div class="donut-pct">55%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SOL -->
+          <div class="donut-card">
+            <div class="donut-header">
+              <div>
+                <div class="donut-title">Solana</div>
+                <div class="donut-subtitle">SOL · DeFi</div>
+              </div>
+              <span class="trend-badge trend-up">↑ 5.2%</span>
+            </div>
+            <div class="donut-footer">
+              <div class="donut-amount">$8,900</div>
+              <div class="donut-wrap">
+                <svg viewBox="0 0 64 64">
+                  <circle class="donut-bg" cx="32" cy="32" r="28"/>
+                  <circle class="donut-fg" cx="32" cy="32" r="28"
+                    stroke="#e040fb"
+                    stroke-dasharray="175.93"
+                    stroke-dashoffset="105.56"/>
+                </svg>
+                <div class="donut-pct">40%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- NFT -->
+          <div class="donut-card">
+            <div class="donut-header">
+              <div>
+                <div class="donut-title">NFT Floor</div>
+                <div class="donut-subtitle">Avg · 12 cols</div>
+              </div>
+              <span class="trend-badge trend-down">↓ 1.1%</span>
+            </div>
+            <div class="donut-footer">
+              <div class="donut-amount">12.4 ETH</div>
+              <div class="donut-wrap">
+                <svg viewBox="0 0 64 64">
+                  <circle class="donut-bg" cx="32" cy="32" r="28"/>
+                  <circle class="donut-fg" cx="32" cy="32" r="28"
+                    stroke="#00c9a7"
+                    stroke-dasharray="175.93"
+                    stroke-dashoffset="123.15"/>
+                </svg>
+                <div class="donut-pct">30%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NFT Strip -->
+        <div class="panel" style="animation-delay:0.4s">
+          <div class="panel-title">
+            My NFTs
+            <span>View All →</span>
+          </div>
+          <div class="nft-strip">
+            <div class="nft-card">
+              <div class="nft-thumb" style="background:linear-gradient(135deg,#0d2a22,#00f5c4)">🦊</div>
+              <div class="nft-info">
+                <div class="nft-name">Cyber Fox #441</div>
+                <div class="nft-price">2.4 ETH</div>
+              </div>
+            </div>
+            <div class="nft-card">
+              <div class="nft-thumb" style="background:linear-gradient(135deg,#1a0a2e,#7b5ea7)">👾</div>
+              <div class="nft-info">
+                <div class="nft-name">Ghost #812</div>
+                <div class="nft-price">5.1 ETH</div>
+              </div>
+            </div>
+            <div class="nft-card">
+              <div class="nft-thumb" style="background:linear-gradient(135deg,#1a0a1a,#e040fb)">🌀</div>
+              <div class="nft-info">
+                <div class="nft-name">Vortex #007</div>
+                <div class="nft-price">1.8 ETH</div>
+              </div>
+            </div>
+            <div class="nft-card">
+              <div class="nft-thumb" style="background:linear-gradient(135deg,#0a1a2a,#00bcd4)">🤖</div>
+              <div class="nft-info">
+                <div class="nft-name">Mech #294</div>
+                <div class="nft-price">3.2 ETH</div>
+              </div>
+            </div>
+            <div class="nft-card">
+              <div class="nft-thumb" style="background:linear-gradient(135deg,#1a1a0a,#ffd600)">🐉</div>
+              <div class="nft-info">
+                <div class="nft-name">Dragon #155</div>
+                <div class="nft-price">8.9 ETH</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column -->
+      <div class="right-col">
+
+        <!-- Portfolio breakdown -->
+        <div class="panel" style="animation-delay:0.1s">
+          <div class="panel-title">
+            Holdings
+            <span>Sort ↕</span>
+          </div>
+
+          <div class="rev-item">
+            <div class="rev-icon" style="background:rgba(247,147,26,0.12); font-size:16px">₿</div>
+            <div class="rev-info">
+              <div class="rev-name">Bitcoin</div>
+              <div class="rev-sub">0.571 BTC</div>
+            </div>
+            <div class="rev-val">
+              <div class="rev-amount">$38.4k</div>
+              <div class="rev-change pos">+2.4%</div>
+            </div>
+          </div>
+
+          <div class="rev-item">
+            <div class="rev-icon" style="background:rgba(98,126,234,0.12); font-size:16px">Ξ</div>
+            <div class="rev-info">
+              <div class="rev-name">Ethereum</div>
+              <div class="rev-sub">5.68 ETH</div>
+            </div>
+            <div class="rev-val">
+              <div class="rev-amount">$22.1k</div>
+              <div class="rev-change pos">+1.8%</div>
+            </div>
+          </div>
+
+          <div class="rev-item">
+            <div class="rev-icon" style="background:rgba(0,245,196,0.08); font-size:16px">◎</div>
+            <div class="rev-info">
+              <div class="rev-name">Solana</div>
+              <div class="rev-sub">48.3 SOL</div>
+            </div>
+            <div class="rev-val">
+              <div class="rev-amount">$8.9k</div>
+              <div class="rev-change pos">+5.2%</div>
+            </div>
+          </div>
+
+          <div class="rev-item">
+            <div class="rev-icon" style="background:rgba(224,64,251,0.1); font-size:16px">⬡</div>
+            <div class="rev-info">
+              <div class="rev-name">Polygon</div>
+              <div class="rev-sub">1,240 MATIC</div>
+            </div>
+            <div class="rev-val">
+              <div class="rev-amount">$1.1k</div>
+              <div class="rev-change neg">-0.6%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Chart -->
+        <div class="panel" style="animation-delay:0.2s">
+          <div class="panel-title">
+            Weekly PnL
+            <span>7D ▾</span>
+          </div>
+          <div class="bar-chart">
+            <div class="bar-group">
+              <div class="bar-val">20%</div>
+              <div class="bar" style="height:40%; background:linear-gradient(to top, var(--cyan2), var(--cyan))"></div>
+              <div class="bar-label">Mo</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-val">55%</div>
+              <div class="bar" style="height:65%; background:linear-gradient(to top, var(--cyan2), var(--cyan))"></div>
+              <div class="bar-label">Tu</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-val">30%</div>
+              <div class="bar" style="height:45%; background:linear-gradient(to top, #4a5568, #718096)"></div>
+              <div class="bar-label">We</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-val">80%</div>
+              <div class="bar" style="height:85%; background:linear-gradient(to top, var(--cyan2), var(--cyan)); box-shadow:0 0 12px rgba(0,245,196,0.4)"></div>
+              <div class="bar-label">Th</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-val">40%</div>
+              <div class="bar" style="height:52%; background:linear-gradient(to top, var(--cyan2), var(--cyan))"></div>
+              <div class="bar-label">Fr</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-val">20%</div>
+              <div class="bar" style="height:30%; background:linear-gradient(to top, rgba(224,64,251,0.5), var(--pink)); opacity:0.7"></div>
+              <div class="bar-label">Sa</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-val">—</div>
+              <div class="bar" style="height:8%; background:rgba(255,255,255,0.1); border:1px dashed rgba(255,255,255,0.1)"></div>
+              <div class="bar-label">Su</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="panel" style="animation-delay:0.3s">
+          <div class="panel-title">Quick Actions</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="pill-btn primary" style="justify-content:center; width:100%; padding:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+              Buy Crypto
+            </button>
+            <button class="pill-btn ghost" style="justify-content:center; width:100%; padding:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Browse NFTs
+            </button>
+            <button class="pill-btn ghost" style="justify-content:center; width:100%; padding:10px; color:var(--pink); border-color:rgba(224,64,251,0.2)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19v-14M5 12l7 7 7-7"/></svg>
+              Sell / Withdraw
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTS OVERLAY BACKDROP -->
+<div id="alerts-backdrop" onclick="closeAlerts()" style="
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+  backdrop-filter:blur(4px); z-index:100;
+"></div>
+
+<!-- ALERTS PANEL -->
+<div id="alerts-panel" style="
+  display:none; position:fixed; top:0; right:0; width:420px; height:100vh;
+  background:#0e1118; border-left:1px solid rgba(255,255,255,0.08);
+  z-index:101; flex-direction:column; overflow:hidden;
+  box-shadow:-20px 0 60px rgba(0,0,0,0.5);
+  transform:translateX(100%); transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);
+">
+  <!-- Panel Header -->
+  <div style="padding:22px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:30px;height:30px;border-radius:8px;background:rgba(0,245,196,0.1);display:flex;align-items:center;justify-content:center;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00f5c4" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#e8eaf0;">Price Alerts</span>
+        <span id="panel-count" style="background:rgba(0,245,196,0.12);color:#00f5c4;font-size:10px;padding:2px 8px;border-radius:20px;"></span>
+      </div>
+      <button onclick="closeAlerts()" style="background:none;border:none;cursor:pointer;color:#5a6070;padding:4px;border-radius:6px;transition:color 0.2s;" onmouseover="this.style.color='#e8eaf0'" onmouseout="this.style.color='#5a6070'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p style="font-size:11px;color:#5a6070;margin-left:40px;">Get notified when prices hit your targets</p>
+  </div>
+
+  <!-- Tab Bar -->
+  <div style="display:flex; padding:12px 20px 0; gap:4px; flex-shrink:0; border-bottom:1px solid rgba(255,255,255,0.06);">
+    <button class="alert-tab active" id="tab-all" onclick="switchTab('all')" data-tab="all">All</button>
+    <button class="alert-tab" id="tab-crypto" onclick="switchTab('crypto')" data-tab="crypto">Crypto</button>
+    <button class="alert-tab" id="tab-nft" onclick="switchTab('nft')" data-tab="nft">NFT Floor</button>
+    <button class="alert-tab" id="tab-triggered" onclick="switchTab('triggered')" data-tab="triggered">Triggered</button>
+  </div>
+
+  <!-- Alert List -->
+  <div id="alert-list" style="flex:1;overflow-y:auto;padding:14px 20px;display:flex;flex-direction:column;gap:8px;"></div>
+
+  <!-- Create Alert Form -->
+  <div style="padding:16px 20px; border-top:1px solid rgba(255,255,255,0.06); flex-shrink:0; background:#0a0d14;">
+    <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:600;color:#e8eaf0;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00f5c4" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+      Create New Alert
+    </div>
+    
+    <!-- Type Toggle -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button id="form-type-crypto" onclick="setFormType('crypto')" style="flex:1;padding:7px;border-radius:7px;border:1px solid rgba(0,245,196,0.4);background:rgba(0,245,196,0.08);color:#00f5c4;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all 0.2s;">Crypto</button>
+      <button id="form-type-nft" onclick="setFormType('nft')" style="flex:1;padding:7px;border-radius:7px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#5a6070;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all 0.2s;">NFT Floor</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <!-- Asset selector -->
+      <div>
+        <label style="font-size:9px;color:#5a6070;letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:4px;">Asset</label>
+        <select id="form-asset" style="width:100%;background:#141821;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:8px 10px;color:#e8eaf0;font-family:'DM Mono',monospace;font-size:12px;outline:none;cursor:pointer;">
+          <option value="BTC">BTC — Bitcoin</option>
+          <option value="ETH">ETH — Ethereum</option>
+          <option value="SOL">SOL — Solana</option>
+          <option value="MATIC">MATIC — Polygon</option>
+          <option value="AVAX">AVAX — Avalanche</option>
+          <option value="LINK">LINK — Chainlink</option>
+          <option value="DOT">DOT — Polkadot</option>
+          <option value="ADA">ADA — Cardano</option>
+          <option value="DOGE">DOGE — Dogecoin</option>
+        </select>
+      </div>
+      <!-- Direction -->
+      <div>
+        <label style="font-size:9px;color:#5a6070;letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:4px;">Direction</label>
+        <select id="form-direction" style="width:100%;background:#141821;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:8px 10px;color:#e8eaf0;font-family:'DM Mono',monospace;font-size:12px;outline:none;cursor:pointer;">
+          <option value="above">↑ Price Above</option>
+          <option value="below">↓ Price Below</option>
+          <option value="change_up">▲ % Change Up</option>
+          <option value="change_down">▼ % Change Down</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div>
+        <label style="font-size:9px;color:#5a6070;letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:4px;" id="form-target-label">Target Price ($)</label>
+        <input id="form-target" type="number" placeholder="e.g. 70000" style="width:100%;background:#141821;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:8px 10px;color:#e8eaf0;font-family:'DM Mono',monospace;font-size:12px;outline:none;" onfocus="this.style.borderColor='rgba(0,245,196,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
+      </div>
+      <div>
+        <label style="font-size:9px;color:#5a6070;letter-spacing:0.1em;text-transform:uppercase;display:block;margin-bottom:4px;">Note (optional)</label>
+        <input id="form-note" type="text" placeholder="e.g. Take profit" style="width:100%;background:#141821;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:8px 10px;color:#e8eaf0;font-family:'DM Mono',monospace;font-size:12px;outline:none;" onfocus="this.style.borderColor='rgba(0,245,196,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
+      </div>
+    </div>
+
+    <button onclick="createAlert()" style="width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#00f5c4,#00c9a7);color:#090b10;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+      Set Alert
+    </button>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+
+<style>
+  .alert-tab {
+    padding: 8px 14px;
+    border-radius: 7px 7px 0 0;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: #5a6070;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+  }
+  .alert-tab.active {
+    color: #00f5c4;
+    border-bottom-color: #00f5c4;
+    background: rgba(0,245,196,0.05);
+  }
+  .alert-tab:hover:not(.active) { color: #8892a4; }
+
+  .alert-item {
+    background: #111620;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+    animation: slideIn 0.3s ease both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .alert-item:hover { border-color: rgba(255,255,255,0.1); }
+  .alert-item.triggered { border-color: rgba(0,245,196,0.2); background: rgba(0,245,196,0.04); }
+  .alert-item.triggered-down { border-color: rgba(224,64,251,0.2); background: rgba(224,64,251,0.04); }
+  .alert-item.paused { opacity: 0.5; }
+
+  .alert-symbol {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .alert-body { flex: 1; min-width: 0; }
+  .alert-asset { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; color: #e8eaf0; }
+  .alert-condition { font-size: 11px; color: #8892a4; margin-top: 2px; }
+  .alert-note { font-size: 10px; color: #5a6070; margin-top: 2px; font-style: italic; }
+
+  .alert-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  .alert-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: transparent;
+    color: #5a6070;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .alert-btn:hover { border-color: rgba(255,255,255,0.15); color: #e8eaf0; }
+  .alert-btn.danger:hover { border-color: rgba(224,64,251,0.4); color: #e040fb; }
+
+  .alert-status {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-active { background: #00f5c4; box-shadow: 0 0 6px rgba(0,245,196,0.5); animation: blink 2s ease-in-out infinite; }
+  .status-paused { background: #5a6070; }
+  .status-triggered { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.5); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .empty-state {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 20px; text-align: center;
+    color: #5a6070; gap: 10px;
+  }
+
+  .empty-state svg { opacity: 0.3; }
+  .empty-state p { font-size: 12px; line-height: 1.5; }
+
+  /* Toast */
+  .toast {
+    background: #111620;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 260px;
+    pointer-events: all;
+    animation: toastIn 0.3s ease both;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateY(10px) scale(0.95); }
+  }
+
+  .toast-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .toast-body { flex: 1; }
+  .toast-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; color: #e8eaf0; }
+  .toast-msg { font-size: 11px; color: #8892a4; margin-top: 2px; }
+
+  #alert-list::-webkit-scrollbar { width: 3px; }
+  #alert-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+  /* NFT asset options */
+  #form-asset option[data-type="nft"] { color: #7b5ea7; }
+</style>
+
+
+<script>
+  // ═══════════════════════════════════════════════════════════
+  //  CIPHER Dashboard — Main JS
+  // ═══════════════════════════════════════════════════════════
+
+  // ─── Constants & State ───────────────────────────────────────────────────
+  let currentTab = 'all';
+  let formType   = 'crypto';
+  let alertIdCounter = 10;
+
+  // Fallback prices (replaced by live API data)
+  const PRICES = {
+    BTC: 67482, ETH: 3891, SOL: 184, MATIC: 0.892,
+    AVAX: 38.11, LINK: 14.78, DOT: 8.24, ADA: 0.614, DOGE: 0.1124
+  };
+
+  const NFT_FLOORS = {
+    BAYC: 32.4, Azuki: 8.2, Pudgy: 14.6,
+    Doodles: 3.1, CloneX: 5.8, Moonbirds: 4.2
+  };
+
+  const COLORS = {
+    BTC:   ['rgba(247,147,26,0.15)',  '#f7931a', '₿'],
+    ETH:   ['rgba(98,126,234,0.15)',  '#627eea', 'Ξ'],
+    SOL:   ['rgba(0,245,196,0.12)',   '#00f5c4', '◎'],
+    MATIC: ['rgba(130,71,229,0.15)',  '#8247e5', '⬡'],
+    AVAX:  ['rgba(232,65,66,0.15)',   '#e84142', '▲'],
+    LINK:  ['rgba(43,139,219,0.15)',  '#2b8bdb', '⬡'],
+    DOT:   ['rgba(230,0,122,0.15)',   '#e6007a', '●'],
+    ADA:   ['rgba(0,51,173,0.15)',    '#0033ad', '₳'],
+    DOGE:  ['rgba(194,165,44,0.15)', '#c2a52c', 'Ð'],
+  };
+
+  const NFT_COLORS = {
+    BAYC:      ['rgba(0,245,196,0.12)',   '#00f5c4', '🐒'],
+    Azuki:     ['rgba(224,64,251,0.12)',  '#e040fb', '🌸'],
+    Pudgy:     ['rgba(147,197,253,0.12)', '#93c5fd', '🐧'],
+    Doodles:   ['rgba(251,191,36,0.12)',  '#fbbf24', '🎨'],
+    CloneX:    ['rgba(123,94,167,0.12)',  '#7b5ea7', '👾'],
+    Moonbirds: ['rgba(99,179,237,0.12)', '#63b3ed', '🦉'],
+  };
+
+  let liveData = {};
+
+  let alerts = [
+    { id:1, type:'crypto', asset:'BTC',   direction:'above',      target:70000, note:'ATH break target',  status:'active',    created: Date.now()-3600000  },
+    { id:2, type:'crypto', asset:'ETH',   direction:'below',      target:3500,  note:'Buy the dip',       status:'active',    created: Date.now()-7200000  },
+    { id:3, type:'nft',    asset:'BAYC',  direction:'above',      target:35,    note:'Sell signal',       status:'active',    created: Date.now()-1800000  },
+    { id:4, type:'crypto', asset:'SOL',   direction:'change_up',  target:10,    note:'10% pump alert',    status:'triggered', created: Date.now()-86400000 },
+    { id:5, type:'nft',    asset:'Azuki', direction:'below',      target:7,     note:'Floor dropping',    status:'paused',    created: Date.now()-172800000},
+  ];
+
+  // ─── Live Price Fetching ─────────────────────────────────────────────────
+  async function fetchLivePrices() {
+    try {
+      const res  = await fetch('/api/prices?symbols=BTC,ETH,SOL,MATIC,AVAX,LINK,DOT,ADA,DOGE');
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+
+      liveData = json.data;
+
+      console.log('[CIPHER] Raw data keys:', Object.keys(liveData));
+      console.log('[CIPHER] BTC sample:', JSON.stringify(liveData['BTC']));
+
+      for (const [sym, info] of Object.entries(liveData)) {
+        if (info && info.price) PRICES[sym] = info.price;
+      }
+
+      updateTickerBar(liveData);
+      updateStatCards(liveData);
+      checkAlertTriggers(liveData);
+      updateLastRefreshed();
+
+      console.log('[CIPHER] Prices refreshed ✓', new Date().toLocaleTimeString());
+    } catch (err) {
+      console.error('[CIPHER] Price fetch FAILED:', err.message, err.stack);
+      showToast('error', 'API Error', err.message);
+    }
+  }
+
+  function updateTickerBar(data) {
+    const items = Object.values(data).filter(c => c && c.price).map(c => {
+      const chg   = c.change_24h ?? 0;
+      const color = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
+      const sign  = chg >= 0 ? '+' : '';
+      const price = c.price < 1
+        ? c.price.toFixed(4)
+        : c.price < 100
+          ? c.price.toFixed(2)
+          : Math.round(c.price).toLocaleString();
+      return `<span class="ticker-item">
+        <span class="ticker-sym">${c.symbol}</span>
+        <span class="ticker-price">$${price}</span>
+        <span style="color:${color}">${sign}${chg.toFixed(2)}%</span>
+      </span>`;
+    });
+    const html  = [...items, ...items].join('');
+    const inner = document.querySelector('.ticker-inner');
+    if (inner) inner.innerHTML = html;
+  }
+
+  function updateStatCards(data) {
+    // Holdings: symbol -> quantity owned
+    const holdings = {
+      BTC:   { qty: 0.571 },
+      ETH:   { qty: 5.68  },
+      SOL:   { qty: 48.3  },
+      MATIC: { qty: 1240  },
+    };
+
+    // Calculate total portfolio value
+    let totalValue = 0;
+    for (const [sym, h] of Object.entries(holdings)) {
+      if (data[sym]) totalValue += (data[sym].price ?? 0) * h.qty;
+    }
+
+    // Update portfolio value card
+    const portfolioEl = document.querySelector('.stat-value');
+    if (portfolioEl) {
+      portfolioEl.textContent = '$' + (totalValue / 1000).toFixed(1) + 'k';
+    }
+
+    // Update each donut card amount by index
+    const donutCards = document.querySelectorAll('.donut-card');
+    const donutMap = [
+      { sym: 'BTC',  qty: 0.571, prefix: '$', suffix: '' },
+      { sym: 'ETH',  qty: 5.68,  prefix: '$', suffix: '' },
+      { sym: 'SOL',  qty: 48.3,  prefix: '$', suffix: '' },
+    ];
+    donutCards.forEach((card, i) => {
+      const m = donutMap[i];
+      if (!m || !data[m.sym]) return;
+      const info  = data[m.sym];
+      const val   = info.price * m.qty;
+      const chg   = info.change_24h ?? 0;
+      const sign  = chg >= 0 ? '+' : '';
+      const color = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
+      const valStr = val >= 1000 ? '$' + Math.round(val).toLocaleString() : '$' + val.toFixed(2);
+
+      const amountEl = card.querySelector('.donut-amount');
+      const badgeEl  = card.querySelector('.trend-badge');
+      if (amountEl) amountEl.textContent = valStr;
+      if (badgeEl) {
+        badgeEl.textContent = (chg >= 0 ? '↑ ' : '↓ ') + Math.abs(chg).toFixed(2) + '%';
+        badgeEl.className   = 'trend-badge ' + (chg >= 0 ? 'trend-up' : 'trend-down');
+      }
+    });
+
+    // Update right-panel holdings list
+    const holdingMap = [
+      { sym: 'BTC',   qty: 0.571 },
+      { sym: 'ETH',   qty: 5.68  },
+      { sym: 'SOL',   qty: 48.3  },
+      { sym: 'MATIC', qty: 1240  },
+    ];
+    document.querySelectorAll('.rev-item').forEach((item, i) => {
+      const h = holdingMap[i];
+      if (!h || !data[h.sym]) return;
+      const info   = data[h.sym];
+      const val    = info.price * h.qty;
+      const chg    = info.change_24h ?? 0;
+      const sign   = chg >= 0 ? '+' : '';
+      const color  = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
+      const valStr = val >= 1000 ? '$' + (val / 1000).toFixed(1) + 'k' : '$' + val.toFixed(0);
+      const amountEl = item.querySelector('.rev-amount');
+      const changeEl = item.querySelector('.rev-change');
+      if (amountEl) amountEl.textContent = valStr;
+      if (changeEl) { changeEl.textContent = sign + chg.toFixed(2) + '%'; changeEl.style.color = color; }
+    });
+  }
+
+  function checkAlertTriggers(data) {
+    let anyTriggered = false;
+    alerts.forEach(alert => {
+      if (alert.status !== 'active' || alert.type !== 'crypto') return;
+      const info  = data[alert.asset];
+      if (!info) return;
+      const price = info.price;
+      let hit = false;
+      if (alert.direction === 'above'       && price >= alert.target)              hit = true;
+      if (alert.direction === 'below'       && price <= alert.target)              hit = true;
+      if (alert.direction === 'change_up'   && info.change_24h >= alert.target)   hit = true;
+      if (alert.direction === 'change_down' && info.change_24h <= -alert.target)  hit = true;
+      if (hit) {
+        alert.status = 'triggered';
+        anyTriggered = true;
+        showToast('triggered',
+          '🔔 ' + alert.asset + ' Alert Hit!',
+          alert.asset + ' is now $' + price.toLocaleString(undefined, {maximumFractionDigits:2}) + ' — ' + (alert.note || alert.direction)
+        );
+      }
+    });
+    if (anyTriggered) { renderAlerts(); updateBadges(); }
+  }
+
+  function updateLastRefreshed() {
+    const el = document.getElementById('last-refresh');
+    if (el) el.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  // ─── Alerts Panel ────────────────────────────────────────────────────────
+  function openAlerts() {
+    const panel    = document.getElementById('alerts-panel');
+    const backdrop = document.getElementById('alerts-backdrop');
+    panel.style.display    = 'flex';
+    backdrop.style.display = 'block';
+    setTimeout(() => { panel.style.transform = 'translateX(0)'; }, 10);
+    renderAlerts();
+    updateBadges();
+  }
+
+  function closeAlerts() {
+    const panel    = document.getElementById('alerts-panel');
+    const backdrop = document.getElementById('alerts-backdrop');
+    panel.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      panel.style.display    = 'none';
+      backdrop.style.display = 'none';
+    }, 350);
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.alert-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    renderAlerts();
+  }
+
+  function setFormType(type) {
+    formType = type;
+    const cryptoBtn = document.getElementById('form-type-crypto');
+    const nftBtn    = document.getElementById('form-type-nft');
+    const assetSel  = document.getElementById('form-asset');
+    const label     = document.getElementById('form-target-label');
+
+    if (type === 'crypto') {
+      cryptoBtn.style.cssText += ';border-color:rgba(0,245,196,0.4);background:rgba(0,245,196,0.08);color:#00f5c4';
+      nftBtn.style.cssText    += ';border-color:rgba(255,255,255,0.06);background:transparent;color:#5a6070';
+      label.textContent = 'Target Price ($)';
+      assetSel.innerHTML = `
+        <option value="BTC">BTC — Bitcoin</option>
+        <option value="ETH">ETH — Ethereum</option>
+        <option value="SOL">SOL — Solana</option>
+        <option value="MATIC">MATIC — Polygon</option>
+        <option value="AVAX">AVAX — Avalanche</option>
+        <option value="LINK">LINK — Chainlink</option>
+        <option value="DOT">DOT — Polkadot</option>
+        <option value="ADA">ADA — Cardano</option>
+        <option value="DOGE">DOGE — Dogecoin</option>`;
+    } else {
+      nftBtn.style.cssText    += ';border-color:rgba(123,94,167,0.4);background:rgba(123,94,167,0.08);color:#7b5ea7';
+      cryptoBtn.style.cssText += ';border-color:rgba(255,255,255,0.06);background:transparent;color:#5a6070';
+      label.textContent = 'Floor Price (ETH)';
+      assetSel.innerHTML = `
+        <option value="BAYC">BAYC — Bored Ape YC</option>
+        <option value="Azuki">Azuki</option>
+        <option value="Pudgy">Pudgy Penguins</option>
+        <option value="Doodles">Doodles</option>
+        <option value="CloneX">CloneX</option>
+        <option value="Moonbirds">Moonbirds</option>`;
+    }
+  }
+
+  function createAlert() {
+    const asset     = document.getElementById('form-asset').value;
+    const direction = document.getElementById('form-direction').value;
+    const target    = parseFloat(document.getElementById('form-target').value);
+    const note      = document.getElementById('form-note').value.trim();
+    if (!target || isNaN(target)) {
+      showToast('error', 'Missing Target', 'Please enter a valid target price.');
+      return;
+    }
+    alerts.unshift({ id:++alertIdCounter, type:formType, asset, direction, target, note:note||null, status:'active', created:Date.now() });
+    document.getElementById('form-target').value = '';
+    document.getElementById('form-note').value   = '';
+    renderAlerts();
+    updateBadges();
+    const unit     = formType === 'nft' ? 'ETH' : '$';
+    const dirLabel = {above:'above', below:'below', change_up:'% change ↑', change_down:'% change ↓'}[direction];
+    showToast('success', 'Alert Created!', asset + ' ' + dirLabel + ' ' + unit + target.toLocaleString());
+  }
+
+  function toggleAlert(id) {
+    const a = alerts.find(x => x.id === id);
+    if (!a || a.status === 'triggered') return;
+    a.status = a.status === 'active' ? 'paused' : 'active';
+    renderAlerts();
+    updateBadges();
+    showToast('info', a.status === 'active' ? 'Alert Resumed' : 'Alert Paused', a.asset + ' alert ' + a.status);
+  }
+
+  function deleteAlert(id) {
+    const a = alerts.find(x => x.id === id);
+    alerts = alerts.filter(x => x.id !== id);
+    renderAlerts();
+    updateBadges();
+    showToast('delete', 'Alert Removed', a.asset + ' alert deleted');
+  }
+
+  function renderAlerts() {
+    const list = document.getElementById('alert-list');
+    let filtered = alerts;
+    if (currentTab === 'crypto')    filtered = alerts.filter(a => a.type === 'crypto');
+    else if (currentTab === 'nft')  filtered = alerts.filter(a => a.type === 'nft');
+    else if (currentTab === 'triggered') filtered = alerts.filter(a => a.status === 'triggered');
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#5a6070" stroke-width="1.5">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <p>No alerts here.<br>Create one below.</p>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(a => {
+      const isCrypto  = a.type === 'crypto';
+      const colorInfo = isCrypto ? (COLORS[a.asset]     || ['rgba(255,255,255,0.08)','#8892a4','?'])
+                                 : (NFT_COLORS[a.asset] || ['rgba(255,255,255,0.08)','#8892a4','?']);
+      const [bg, accent, symbol] = colorInfo;
+      const unit   = isCrypto ? '$' : '';
+      const suffix = isCrypto ? '' : ' ETH';
+      const dirLabels = {
+        above:       '↑ Above '    + unit + a.target.toLocaleString() + suffix,
+        below:       '↓ Below '    + unit + a.target.toLocaleString() + suffix,
+        change_up:   '▲ +'         + a.target + '% change',
+        change_down: '▼ -'         + a.target + '% change',
+      };
+      const currentPrice = isCrypto
+        ? (PRICES[a.asset] ? 'Now: $' + PRICES[a.asset].toLocaleString(undefined, {maximumFractionDigits:2}) : '')
+        : (NFT_FLOORS[a.asset] ? 'Floor: ' + NFT_FLOORS[a.asset] + ' ETH' : '');
+      const statusDot = a.status === 'active'
+        ? '<div class="alert-status status-active"></div>'
+        : a.status === 'triggered'
+          ? '<div class="alert-status status-triggered"></div>'
+          : '<div class="alert-status status-paused"></div>';
+      const itemClass = a.status === 'triggered'
+        ? (a.direction.includes('up') || a.direction === 'above' ? 'alert-item triggered' : 'alert-item triggered-down')
+        : a.status === 'paused' ? 'alert-item paused' : 'alert-item';
+      const toggleIcon = a.status === 'paused'
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+      return `<div class="${itemClass}">
+        ${statusDot}
+        <div class="alert-symbol" style="background:${bg};color:${accent}">
+          <span style="font-size:${isCrypto?'13':'16'}px">${symbol}</span>
+        </div>
+        <div class="alert-body">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="alert-asset">${a.asset}</span>
+            ${!isCrypto ? '<span style="font-size:9px;background:rgba(123,94,167,0.15);color:#7b5ea7;padding:1px 5px;border-radius:4px;">NFT</span>' : ''}
+            ${a.status === 'triggered' ? '<span style="font-size:9px;background:rgba(251,191,36,0.15);color:#fbbf24;padding:1px 5px;border-radius:4px;">TRIGGERED</span>' : ''}
+          </div>
+          <div class="alert-condition">${dirLabels[a.direction]} · ${currentPrice}</div>
+          ${a.note ? '<div class="alert-note">' + a.note + '</div>' : ''}
+          <div style="font-size:9px;color:#3a4050;margin-top:2px">${formatTime(a.created)}</div>
+        </div>
+        <div class="alert-actions">
+          ${a.status !== 'triggered' ? '<button class="alert-btn" onclick="toggleAlert(' + a.id + ')" title="' + (a.status==='paused'?'Resume':'Pause') + '">' + toggleIcon + '</button>' : ''}
+          <button class="alert-btn danger" onclick="deleteAlert(' + a.id + ')" title="Delete">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('panel-count').textContent =
+      alerts.filter(a => a.status === 'active').length + ' active';
+  }
+
+  function updateBadges() {
+    const active    = alerts.filter(a => a.status === 'active').length;
+    const triggered = alerts.filter(a => a.status === 'triggered').length;
+    const total     = active + triggered;
+    const badge = document.getElementById('alert-count-badge');
+    const dot   = document.getElementById('header-notif-dot');
+    if (badge) badge.textContent = total;
+    if (dot)   dot.style.display = total > 0 ? 'block' : 'none';
+  }
+
+  function showToast(type, title, msg) {
+    const container = document.getElementById('toast-container');
+    const configs = {
+      success:   { bg:'rgba(0,245,196,0.1)',   border:'rgba(0,245,196,0.25)',   icon:'✓', color:'#00f5c4' },
+      error:     { bg:'rgba(224,64,251,0.1)',   border:'rgba(224,64,251,0.25)', icon:'✕', color:'#e040fb' },
+      info:      { bg:'rgba(123,94,167,0.1)',   border:'rgba(123,94,167,0.25)', icon:'ℹ', color:'#7b5ea7' },
+      delete:    { bg:'rgba(239,68,68,0.1)',    border:'rgba(239,68,68,0.2)',   icon:'🗑', color:'#ef4444' },
+      triggered: { bg:'rgba(251,191,36,0.1)',   border:'rgba(251,191,36,0.3)', icon:'🔔', color:'#fbbf24' },
+    };
+    const c  = configs[type] || configs.info;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.style.cssText += ';border-color:' + c.border;
+    el.innerHTML = `
+      <div class="toast-icon" style="background:${c.bg};color:${c.color};font-size:14px">${c.icon}</div>
+      <div class="toast-body">
+        <div class="toast-title">${title}</div>
+        <div class="toast-msg">${msg}</div>
+      </div>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.style.animation = 'toastOut 0.3s ease forwards';
+      setTimeout(() => el.remove(), 300);
+    }, 3500);
+  }
+
+  function formatTime(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000)     return 'just now';
+    if (diff < 3600000)   return Math.floor(diff/60000)    + 'm ago';
+    if (diff < 86400000)  return Math.floor(diff/3600000)  + 'h ago';
+    return Math.floor(diff/86400000) + 'd ago';
+  }
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
+  updateBadges();
+  fetchLivePrices();
+  setInterval(fetchLivePrices, 60000);
+</script>
+</body>
+</html>
