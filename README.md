@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CIPHER — Crypto & NFT Dashboard
 
 Your personal crypto dashboard with live CoinMarketCap prices and price alerts.
@@ -127,3 +128,7 @@ cipher-dashboard/
 └── public/
     └── index.html     ← The dashboard UI
 ```
+=======
+# cipher-dashboard
+Crypto and NFTs dashboard
+>>>>>>> 4354a52f0e9b540047892f0ec43b2567741f87c1
