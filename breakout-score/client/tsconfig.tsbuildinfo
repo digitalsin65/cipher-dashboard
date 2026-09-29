@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/coinrow.tsx","./src/components/scorebar.tsx","./src/components/signalbreakdown.tsx","./src/hooks/usescores.ts"],"version":"5.9.3"}

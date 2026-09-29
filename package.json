@@ -1,14 +1,22 @@
 {
   "name": "cipher-dashboard",
   "version": "1.0.0",
-  "description": "CIPHER — Personal Crypto & NFT Dashboard",
+  "description": "CIPHER - Personal Crypto & NFT Dashboard (with Breakout Score)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "install:all": "npm install && npm run install:all --prefix breakout-score",
+    "build:breakout": "npm run build --prefix breakout-score/client",
+    "dev:breakout": "npm run start --prefix breakout-score",
+    "dev:cipher": "node server.js",
+    "dev": "npm run build:breakout && concurrently -n cipher,breakout -c cyan,magenta \"npm run dev:cipher\" \"npm run dev:breakout\"",
+    "start": "npm run dev"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.9"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

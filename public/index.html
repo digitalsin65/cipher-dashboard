@@ -236,6 +236,9 @@
     margin-left: 220px;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: calc(100vw - 220px);
+    overflow-x: hidden;
   }
 
   /* Header */
@@ -332,13 +335,16 @@
 
   /* Content */
   .content {
-    padding: 24px 28px;
+    padding: 24px 16px 56px 24px;
     display: flex;
-    gap: 24px;
+    gap: 16px;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
-  .center-col { flex: 1; display: flex; flex-direction: column; gap: 20px; }
-  .right-col { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
+  .center-col { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; overflow: hidden; }
+  .right-col { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: visible; }
 
   /* Stat Cards Row */
   .stat-cards {
@@ -653,11 +659,15 @@
   .ticker-bar {
     background: rgba(0,245,196,0.04);
     border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
     overflow: hidden;
     height: 32px;
     display: flex;
     align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 220px;
+    right: 0;
+    z-index: 50;
   }
 
   .ticker-inner {
@@ -734,6 +744,28 @@
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* View panels (Overview vs Breakout) */
+  #view-overview { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #view-overview.hidden { display: none; }
+  #view-breakout {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    background: #0b0d12;
+  }
+  #view-breakout.active {
+    display: flex;
+  }
+  #view-breakout iframe {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #0b0d12;
+  }
 </style>
 </head>
 <body>
@@ -758,7 +790,7 @@
 
     <nav class="nav-section">
       <div class="nav-label">Main</div>
-      <a class="nav-item active" href="#">
+      <a class="nav-item active" href="#" id="nav-overview" onclick="showView('overview'); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Overview
       </a>
@@ -767,7 +799,12 @@
         Markets
         <span class="badge">LIVE</span>
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" id="nav-breakout" onclick="showView('breakout'); return false;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+        Breakout
+        <span class="badge">LIVE</span>
+      </a>
+      <a class="nav-item" href="/nfts.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         NFTs
       </a>
@@ -782,7 +819,7 @@
       </a>
 
       <div class="nav-label">Tools</div>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" onclick="openHoldings(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
         Portfolio
       </a>
@@ -800,7 +837,7 @@
       <div class="user-card">
         <div class="avatar">DM</div>
         <div class="user-info">
-          <div class="user-name">David Milan</div>
+          <div class="user-name">Mike Gio</div>
           <div class="user-role">Pro Trader</div>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5a6070" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
@@ -810,8 +847,10 @@
 
   <!-- Main -->
   <div class="main">
-    <!-- Ticker -->
-    <div class="ticker-bar">
+    <div id="view-overview">
+    <!-- Ticker moved to bottom (see end of body) -->
+    <!-- <div class="ticker-bar"> placeholder -->
+    <div style="display:none">
       <div class="ticker-inner">
         <!-- Repeated for seamless loop -->
         <span class="ticker-item"><span class="ticker-sym">BTC</span><span class="ticker-price">$67,482.10</span><span class="pos">+2.4%</span></span>
@@ -839,7 +878,7 @@
     <!-- Header -->
     <div class="header">
       <div class="greeting">
-        <h1>Hello, David 👋</h1>
+        <h1>Hello, Mike 👋</h1>
         <p>Your portfolio is up <span style="color:var(--cyan)">+12.4%</span> this week &nbsp;·&nbsp; <span id="last-refresh" style="color:var(--muted);font-size:10px;">Connecting to API…</span></p>
       </div>
       <div class="search-bar">
@@ -864,12 +903,15 @@
 
         <!-- Filter row -->
         <div class="filter-row">
-          <button class="pill-btn primary">All Assets</button>
-          <button class="pill-btn ghost">DeFi</button>
-          <button class="pill-btn ghost">NFTs</button>
-          <button class="pill-btn ghost">Layer 1</button>
-          <button class="pill-btn ghost">Stablecoins</button>
+          <button class="pill-btn primary" id="view-btn-all"    onclick="switchMainView('all')">All Assets</button>
+          <button class="pill-btn ghost"   id="view-btn-defi"   onclick="switchMainView('defi')">DeFi</button>
+          <button class="pill-btn ghost"   id="view-btn-nft"    onclick="switchMainView('nft')">NFTs</button>
+          <button class="pill-btn ghost"   id="view-btn-layer1" onclick="switchMainView('layer1')">Layer 1</button>
+          <button class="pill-btn ghost"   id="view-btn-stable" onclick="switchMainView('stable')">Stablecoins</button>
         </div>
+
+        <!-- ═══ CRYPTO VIEW (All Assets / DeFi / Layer1 / Stablecoins) ═══ -->
+        <div id="view-crypto">
 
         <!-- Stat Cards -->
         <div class="stat-cards">
@@ -999,54 +1041,190 @@
         </div>
 
         <!-- NFT Strip -->
-        <div class="panel" style="animation-delay:0.4s">
-          <div class="panel-title">
-            My NFTs
-            <span>View All →</span>
+        <!-- NFT Panel with Discover tabs -->
+        <div class="panel" style="animation-delay:0.4s;padding-bottom:0;">
+
+          <!-- Tab header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="display:flex;gap:4px;">
+              <button class="nft-tab active" id="tab-mine"    onclick="switchNftTab('mine')"    >My NFTs</button>
+              <button class="nft-tab"        id="tab-fomo"    onclick="switchNftTab('fomo')"    >🔥 FOMO</button>
+              <button class="nft-tab"        id="tab-whale"   onclick="switchNftTab('whale')"   >🐋 Whales</button>
+              <button class="nft-tab"        id="tab-news"    onclick="switchNftTab('news')"    >📰 News</button>
+              <button class="nft-tab"        id="tab-search"  onclick="switchNftTab('search')"  >🔍 Search</button>
+              <button class="nft-tab"        id="tab-watch"   onclick="switchNftTab('watch')"   >⭐ Watch</button>
+            </div>
+            <a href="/nfts.html" style="color:var(--cyan);font-size:10px;font-family:'DM Mono',monospace;text-decoration:none;white-space:nowrap;">View All →</a>
           </div>
-          <div class="nft-strip">
-            <div class="nft-card">
-              <div class="nft-thumb" style="background:linear-gradient(135deg,#0d2a22,#00f5c4)">🦊</div>
-              <div class="nft-info">
-                <div class="nft-name">Cyber Fox #441</div>
-                <div class="nft-price">2.4 ETH</div>
-              </div>
+
+          <!-- My NFTs tab -->
+          <div id="nft-pane-mine">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:10px;color:var(--muted2);">Your wallet</span>
+              <span id="nft-strip-count" style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;"></span>
             </div>
-            <div class="nft-card">
-              <div class="nft-thumb" style="background:linear-gradient(135deg,#1a0a2e,#7b5ea7)">👾</div>
-              <div class="nft-info">
-                <div class="nft-name">Ghost #812</div>
-                <div class="nft-price">5.1 ETH</div>
-              </div>
-            </div>
-            <div class="nft-card">
-              <div class="nft-thumb" style="background:linear-gradient(135deg,#1a0a1a,#e040fb)">🌀</div>
-              <div class="nft-info">
-                <div class="nft-name">Vortex #007</div>
-                <div class="nft-price">1.8 ETH</div>
-              </div>
-            </div>
-            <div class="nft-card">
-              <div class="nft-thumb" style="background:linear-gradient(135deg,#0a1a2a,#00bcd4)">🤖</div>
-              <div class="nft-info">
-                <div class="nft-name">Mech #294</div>
-                <div class="nft-price">3.2 ETH</div>
-              </div>
-            </div>
-            <div class="nft-card">
-              <div class="nft-thumb" style="background:linear-gradient(135deg,#1a1a0a,#ffd600)">🐉</div>
-              <div class="nft-info">
-                <div class="nft-name">Dragon #155</div>
-                <div class="nft-price">8.9 ETH</div>
-              </div>
+            <div class="nft-strip" id="overview-nft-strip">
+              <div class="nft-card" style="min-width:100px"><div class="nft-thumb" style="background:var(--card2)"></div><div class="nft-info"><div style="background:var(--card2);height:8px;border-radius:4px;margin-bottom:4px;"></div><div style="background:var(--card2);height:7px;width:50%;border-radius:4px;"></div></div></div>
+              <div class="nft-card" style="min-width:100px"><div class="nft-thumb" style="background:var(--card2)"></div><div class="nft-info"><div style="background:var(--card2);height:8px;border-radius:4px;margin-bottom:4px;"></div><div style="background:var(--card2);height:7px;width:50%;border-radius:4px;"></div></div></div>
+              <div class="nft-card" style="min-width:100px"><div class="nft-thumb" style="background:var(--card2)"></div><div class="nft-info"><div style="background:var(--card2);height:8px;border-radius:4px;margin-bottom:4px;"></div><div style="background:var(--card2);height:7px;width:50%;border-radius:4px;"></div></div></div>
             </div>
           </div>
+
+          <!-- FOMO tab — trending collections -->
+          <div id="nft-pane-fomo" style="display:none;">
+            <div id="fomo-feed" style="display:flex;flex-direction:column;gap:0;"></div>
+          </div>
+
+          <!-- Whale tab -->
+          <div id="nft-pane-whale" style="display:none;">
+            <div id="whale-feed" style="display:flex;flex-direction:column;gap:0;"></div>
+          </div>
+
+          <!-- News tab -->
+          <div id="nft-pane-news" style="display:none;">
+            <div id="news-feed" style="display:flex;flex-direction:column;gap:0;"></div>
+          </div>
+
+          <!-- Search tab -->
+          <div id="nft-pane-search" style="display:none;">
+
+            <!-- Search by collection slug or contract -->
+            <div style="display:flex;gap:6px;margin-bottom:12px;">
+              <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;"
+                   onfocus-within="this.style.borderColor='rgba(0,245,196,0.4)'"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5a6070" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input id="nft-search-input" type="text" placeholder="Collection slug or contract (e.g. azuki, 0x1234…)"
+                  style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;"
+                  onkeydown="if(event.key==='Enter') runNftSearch()"
+                  onfocus="this.parentElement.style.borderColor='rgba(0,245,196,0.4)'"
+                  onblur="this.parentElement.style.borderColor='rgba(255,255,255,0.06)'"
+                >
+              </div>
+              <button onclick="runNftSearch()" style="padding:8px 14px;background:rgba(0,245,196,0.1);border:1px solid rgba(0,245,196,0.25);border-radius:8px;color:var(--cyan);font-family:'Syne',sans-serif;font-weight:600;font-size:11px;cursor:pointer;white-space:nowrap;transition:all 0.2s;"
+                onmouseover="this.style.background='rgba(0,245,196,0.18)'" onmouseout="this.style.background='rgba(0,245,196,0.1)'">
+                Search
+              </button>
+            </div>
+
+            <!-- Quick picks -->
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;" id="nft-quick-picks">
+              <span style="font-size:9px;color:var(--muted);padding-top:4px;">Quick:</span>
+              <button class="nft-tab" style="padding:3px 8px;font-size:9px;" onclick="quickSearch('azuki')">Azuki</button>
+              <button class="nft-tab" style="padding:3px 8px;font-size:9px;" onclick="quickSearch('boredapeyachtclub')">BAYC</button>
+              <button class="nft-tab" style="padding:3px 8px;font-size:9px;" onclick="quickSearch('pudgypenguins')">Pudgy</button>
+              <button class="nft-tab" style="padding:3px 8px;font-size:9px;" onclick="quickSearch('doodles-official')">Doodles</button>
+              <button class="nft-tab" style="padding:3px 8px;font-size:9px;" onclick="quickSearch('clonex')">CloneX</button>
+            </div>
+
+            <!-- Results -->
+            <div id="nft-search-results"></div>
+          </div>
+
+          <!-- Watchlist tab -->
+          <div id="nft-pane-watch" style="display:none;">
+            <div id="watchlist-feed"></div>
+          </div>
+
         </div>
+
+        </div> <!-- end #view-crypto -->
+
+        <!-- ═══ NFT VIEW ═══ -->
+        <div id="view-nft" style="display:none;">
+
+          <!-- NFT Stats row -->
+          <div class="stat-cards" id="nft-view-stats">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(0,245,196,0.1);color:var(--cyan)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+              <div class="stat-label">NFT Holdings</div>
+              <div class="stat-value" id="nv-total">—</div>
+              <div class="stat-sub">in wallet</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(123,94,167,0.1);color:var(--purple)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="stat-label">Est. Portfolio Value</div>
+              <div class="stat-value" id="nv-value">—</div>
+              <div class="stat-sub" id="nv-value-sub">floor × qty</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <div class="stat-label">Watching</div>
+              <div class="stat-value" id="nv-watch">—</div>
+              <div class="stat-sub">collections</div>
+            </div>
+          </div>
+
+          <!-- News ticker -->
+          <div id="nv-news-ticker" style="background:rgba(0,245,196,0.04);border:1px solid var(--border);border-radius:10px;padding:10px 14px;overflow:hidden;position:relative;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;gap:0;">
+              <!-- Label with right fade -->
+              <div style="position:relative;flex-shrink:0;z-index:2;">
+                <span style="font-size:9px;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;font-weight:600;white-space:nowrap;display:block;padding-right:10px;">📰 NFT News</span>
+                <!-- Fade overlay that covers the seam between label and ticker -->
+                <div style="position:absolute;top:0;right:0;width:32px;height:100%;background:linear-gradient(to right, transparent, rgba(13,15,20,0.96));pointer-events:none;"></div>
+              </div>
+              <!-- Scrolling ticker area -->
+              <div style="flex:1;overflow:hidden;position:relative;">
+                <div id="nv-ticker-text" style="font-size:11px;color:var(--muted2);white-space:nowrap;cursor:pointer;">Loading latest NFT news…</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Two column layout: My NFTs + Watchlist | FOMO + Whales -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+            <!-- Left: My NFTs -->
+            <div class="panel" style="padding-bottom:0;">
+              <div class="panel-title">
+                My NFTs
+                <span id="nv-nft-count" style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;"></span>
+                <a href="/nfts.html" style="margin-left:auto;font-size:10px;color:var(--cyan);text-decoration:none;">View All →</a>
+              </div>
+              <div class="nft-strip" id="nv-nft-strip" style="padding-bottom:12px;">
+                <div style="font-size:11px;color:var(--muted2);padding:10px 0;">Loading…</div>
+              </div>
+            </div>
+
+            <!-- Right: Watchlist -->
+            <div class="panel">
+              <div class="panel-title">
+                ⭐ Watchlist
+                <span id="nv-watch-count" style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;"></span>
+                <button onclick="switchNftTab('search');switchMainView('all')" style="margin-left:auto;font-size:10px;color:var(--cyan);background:none;border:none;cursor:pointer;">+ Add</button>
+              </div>
+              <div id="nv-watchlist"></div>
+            </div>
+
+            <!-- Left: FOMO -->
+            <div class="panel">
+              <div class="panel-title">🔥 Trending Collections</div>
+              <div id="nv-fomo"></div>
+            </div>
+
+            <!-- Right: Whale activity -->
+            <div class="panel">
+              <div class="panel-title">🐋 Whale Activity</div>
+              <div id="nv-whales"></div>
+            </div>
+
+          </div>
+
+        </div> <!-- end #view-nft -->
 
       </div>
 
       <!-- Right Column -->
       <div class="right-col">
+
+        <!-- ── CRYPTO RIGHT (default) ── -->
+        <div id="right-crypto">
 
         <!-- Portfolio breakdown -->
         <div class="panel" style="animation-delay:0.1s">
@@ -1168,8 +1346,142 @@
           </div>
         </div>
 
+        </div> <!-- end #right-crypto -->
+
+        <!-- ── NFT RIGHT (shown in NFT view) ── -->
+        <div id="right-nft" style="display:none; flex-direction:column; gap:16px;">
+
+          <!-- NFT quick stats stacked -->
+          <div class="panel">
+            <div class="panel-title" style="color:var(--cyan);">NFT Summary</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,245,196,0.05);border:1px solid rgba(0,245,196,0.1);border-radius:8px;">
+                <span style="font-size:10px;color:var(--muted2);">Total NFTs</span>
+                <span id="rc-total" style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(123,94,167,0.05);border:1px solid rgba(123,94,167,0.15);border-radius:8px;">
+                <span style="font-size:10px;color:var(--muted2);">Est. Value</span>
+                <span id="rc-value" style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--purple);">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.1);border-radius:8px;">
+                <span style="font-size:10px;color:var(--muted2);">Watching</span>
+                <span id="rc-watch" style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#fbbf24;">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);border-radius:8px;">
+                <span style="font-size:10px;color:var(--muted2);">Trending Floor</span>
+                <span id="rc-top-floor" style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#ef4444;">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top watched collection -->
+          <div class="panel">
+            <div class="panel-title">⭐ Top Watched</div>
+            <div id="rc-top-watched">
+              <div style="font-size:11px;color:var(--muted2);padding:8px 0;text-align:center;">No collections saved</div>
+            </div>
+          </div>
+
+          <!-- NFT quick actions -->
+          <div class="panel">
+            <div class="panel-title">Quick Actions</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <button onclick="window.location.href='/nfts.html'"
+                class="pill-btn primary" style="justify-content:center;width:100%;padding:10px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                Browse My NFTs
+              </button>
+              <button onclick="switchNftTab('search');switchMainView('all')"
+                class="pill-btn ghost" style="justify-content:center;width:100%;padding:10px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Search Collections
+              </button>
+              <button onclick="switchNftTab('watch');switchMainView('all')"
+                class="pill-btn ghost" style="justify-content:center;width:100%;padding:10px;color:#fbbf24;border-color:rgba(251,191,36,0.2)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                My Watchlist
+              </button>
+            </div>
+          </div>
+
+        </div> <!-- end #right-nft -->
+
       </div>
     </div>
+    </div><!-- /#view-overview -->
+
+    <div id="view-breakout" aria-label="Breakout Score">
+      <iframe id="breakout-frame" src="/breakout/" title="Breakout Score" loading="lazy"></iframe>
+    </div>
+  </div><!-- /.main -->
+</div><!-- /.app -->
+
+<!-- TICKER BAR — fixed at bottom -->
+<div class="ticker-bar" id="main-ticker">
+  <div class="ticker-inner" id="ticker-scroll-inner">
+    <span class="ticker-item"><span class="ticker-sym">BTC</span><span class="ticker-price">$67,482.10</span><span class="pos">+2.4%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">ETH</span><span class="ticker-price">$3,891.45</span><span class="pos">+1.8%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">SOL</span><span class="ticker-price">$184.22</span><span class="pos">+5.2%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">MATIC</span><span class="ticker-price">$0.892</span><span class="neg">-0.6%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">AVAX</span><span class="ticker-price">$38.11</span><span class="pos">+3.1%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">LINK</span><span class="ticker-price">$14.78</span><span class="pos">+1.2%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">DOT</span><span class="ticker-price">$8.24</span><span class="neg">-1.3%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">ADA</span><span class="ticker-price">$0.614</span><span class="neg">-0.9%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">DOGE</span><span class="ticker-price">$0.1124</span><span class="pos">+4.7%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">BTC</span><span class="ticker-price">$67,482.10</span><span class="pos">+2.4%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">ETH</span><span class="ticker-price">$3,891.45</span><span class="pos">+1.8%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">SOL</span><span class="ticker-price">$184.22</span><span class="pos">+5.2%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">MATIC</span><span class="ticker-price">$0.892</span><span class="neg">-0.6%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">AVAX</span><span class="ticker-price">$38.11</span><span class="pos">+3.1%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">LINK</span><span class="ticker-price">$14.78</span><span class="pos">+1.2%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">DOT</span><span class="ticker-price">$8.24</span><span class="neg">-1.3%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">ADA</span><span class="ticker-price">$0.614</span><span class="neg">-0.9%</span></span>
+    <span class="ticker-item"><span class="ticker-sym">DOGE</span><span class="ticker-price">$0.1124</span><span class="pos">+4.7%</span></span>
+  </div>
+</div>
+
+<!-- HOLDINGS PANEL BACKDROP -->
+<div id="holdings-backdrop" onclick="closeHoldings()" style="
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+  backdrop-filter:blur(4px); z-index:100;
+"></div>
+
+<!-- HOLDINGS EDITOR PANEL -->
+<div id="holdings-panel" style="
+  display:none; position:fixed; top:0; right:0; width:400px; height:100vh;
+  background:#0e1118; border-left:1px solid rgba(255,255,255,0.08);
+  z-index:101; flex-direction:column; overflow:hidden;
+  box-shadow:-20px 0 60px rgba(0,0,0,0.5);
+  transform:translateX(100%); transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);
+">
+  <!-- Header -->
+  <div style="padding:22px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:8px;background:rgba(0,245,196,0.1);display:flex;align-items:center;justify-content:center;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00f5c4" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#e8eaf0;">My Holdings</span>
+      </div>
+      <button onclick="closeHoldings()" style="background:none;border:none;cursor:pointer;color:#5a6070;padding:4px;" onmouseover="this.style.color='#e8eaf0'" onmouseout="this.style.color='#5a6070'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p style="font-size:11px;color:#5a6070;margin-left:40px;">Enter your actual token quantities — values update live</p>
+  </div>
+
+  <!-- Total preview -->
+  <div style="padding:14px 20px;background:rgba(0,245,196,0.04);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="font-size:11px;color:#8892a4;letter-spacing:0.05em;text-transform:uppercase;">Total Portfolio Value</span>
+    <span id="holdings-total" style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;color:#00f5c4;">$0.00</span>
+  </div>
+
+  <!-- Holdings rows -->
+  <div id="holdings-rows" style="flex:1;overflow-y:auto;padding:4px 20px 20px;"></div>
+
+  <!-- Footer note -->
+  <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;background:#0a0d14;">
+    <p style="font-size:10px;color:#3a4050;text-align:center;">Changes save automatically · Stored locally in your browser</p>
   </div>
 </div>
 
@@ -1409,6 +1721,51 @@
 
   /* NFT asset options */
   #form-asset option[data-type="nft"] { color: #7b5ea7; }
+
+  /* NFT Discover tabs */
+  .nft-tab {
+    background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--muted2); cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .nft-tab:hover { border-color: var(--border2); color: var(--text); }
+  .nft-tab.active { background: rgba(0,245,196,0.08); border-color: rgba(0,245,196,0.3); color: var(--cyan); }
+
+  /* Feed items (FOMO / Whale) */
+  .feed-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-item:hover { background: rgba(255,255,255,0.02); margin: 0 -16px; padding: 10px 16px; border-radius: 8px; }
+  .feed-thumb {
+    width: 48px; height: 48px; border-radius: 10px; object-fit: cover;
+    flex-shrink: 0; background: var(--card2); display: flex; align-items: center;
+    justify-content: center; font-size: 20px; overflow: hidden;
+  }
+  .feed-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+  .feed-body { flex: 1; min-width: 0; }
+  .feed-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .feed-meta { font-size: 10px; color: var(--muted2); margin-top: 2px; }
+  .feed-right { text-align: right; flex-shrink: 0; }
+  .feed-price { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text); }
+  .feed-change { font-size: 10px; margin-top: 2px; }
+  .feed-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-buy  { background: rgba(0,245,196,0.12); color: var(--cyan); }
+  .badge-sell { background: rgba(224,64,251,0.12); color: var(--pink); }
+  .badge-mint { background: rgba(251,191,36,0.12); color: #fbbf24; }
+  .badge-hot  { background: rgba(239,68,68,0.12);  color: #ef4444; }
+
+  /* News items */
+  .news-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
+  .news-item:last-child { border-bottom: none; }
+  .news-item:hover .news-title { color: var(--cyan); }
+  .news-source { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px; }
+  .news-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; transition: color 0.2s; }
+  .news-time { font-size: 9px; color: var(--muted); margin-top: 3px; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 </style>
 
 
@@ -1464,6 +1821,32 @@
     { id:5, type:'nft',    asset:'Azuki', direction:'below',      target:7,     note:'Floor dropping',    status:'paused',    created: Date.now()-172800000},
   ];
 
+  // ─── Holdings (saved in localStorage) ──────────────────────────────────
+  const DEFAULT_HOLDINGS = {
+    BTC:   0,
+    ETH:   0,
+    SOL:   0,
+    MATIC: 0,
+    AVAX:  0,
+    LINK:  0,
+    DOT:   0,
+    ADA:   0,
+    DOGE:  0,
+  };
+
+  function loadHoldings() {
+    try {
+      const saved = localStorage.getItem('cipher_holdings');
+      return saved ? { ...DEFAULT_HOLDINGS, ...JSON.parse(saved) } : { ...DEFAULT_HOLDINGS };
+    } catch { return { ...DEFAULT_HOLDINGS }; }
+  }
+
+  function saveHoldings(h) {
+    localStorage.setItem('cipher_holdings', JSON.stringify(h));
+  }
+
+  let HOLDINGS = loadHoldings();
+
   // ─── Live Price Fetching ─────────────────────────────────────────────────
   async function fetchLivePrices() {
     try {
@@ -1509,48 +1892,38 @@
       </span>`;
     });
     const html  = [...items, ...items].join('');
-    const inner = document.querySelector('.ticker-inner');
+    // Target the bottom ticker specifically
+    const inner = document.getElementById('ticker-scroll-inner') || document.querySelector('.ticker-inner');
     if (inner) inner.innerHTML = html;
   }
 
   function updateStatCards(data) {
-    // Holdings: symbol -> quantity owned
-    const holdings = {
-      BTC:   { qty: 0.571 },
-      ETH:   { qty: 5.68  },
-      SOL:   { qty: 48.3  },
-      MATIC: { qty: 1240  },
-    };
-
-    // Calculate total portfolio value
+    // Calculate total portfolio value from real holdings
     let totalValue = 0;
-    for (const [sym, h] of Object.entries(holdings)) {
-      if (data[sym]) totalValue += (data[sym].price ?? 0) * h.qty;
+    for (const [sym, qty] of Object.entries(HOLDINGS)) {
+      if (data[sym] && qty > 0) totalValue += (data[sym].price ?? 0) * qty;
     }
 
     // Update portfolio value card
     const portfolioEl = document.querySelector('.stat-value');
     if (portfolioEl) {
-      portfolioEl.textContent = '$' + (totalValue / 1000).toFixed(1) + 'k';
+      const display = totalValue >= 1000
+        ? '$' + (totalValue / 1000).toFixed(1) + 'k'
+        : '$' + totalValue.toFixed(2);
+      portfolioEl.textContent = display;
     }
 
-    // Update each donut card amount by index
+    // Update donut cards (BTC, ETH, SOL, NFT)
     const donutCards = document.querySelectorAll('.donut-card');
-    const donutMap = [
-      { sym: 'BTC',  qty: 0.571, prefix: '$', suffix: '' },
-      { sym: 'ETH',  qty: 5.68,  prefix: '$', suffix: '' },
-      { sym: 'SOL',  qty: 48.3,  prefix: '$', suffix: '' },
-    ];
+    const donutSyms  = ['BTC', 'ETH', 'SOL'];
     donutCards.forEach((card, i) => {
-      const m = donutMap[i];
-      if (!m || !data[m.sym]) return;
-      const info  = data[m.sym];
-      const val   = info.price * m.qty;
+      const sym = donutSyms[i];
+      if (!sym || !data[sym]) return;
+      const info  = data[sym];
+      const qty   = HOLDINGS[sym] ?? 0;
+      const val   = info.price * qty;
       const chg   = info.change_24h ?? 0;
-      const sign  = chg >= 0 ? '+' : '';
-      const color = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
       const valStr = val >= 1000 ? '$' + Math.round(val).toLocaleString() : '$' + val.toFixed(2);
-
       const amountEl = card.querySelector('.donut-amount');
       const badgeEl  = card.querySelector('.trend-badge');
       if (amountEl) amountEl.textContent = valStr;
@@ -1561,21 +1934,17 @@
     });
 
     // Update right-panel holdings list
-    const holdingMap = [
-      { sym: 'BTC',   qty: 0.571 },
-      { sym: 'ETH',   qty: 5.68  },
-      { sym: 'SOL',   qty: 48.3  },
-      { sym: 'MATIC', qty: 1240  },
-    ];
+    const holdingSyms = ['BTC', 'ETH', 'SOL', 'MATIC'];
     document.querySelectorAll('.rev-item').forEach((item, i) => {
-      const h = holdingMap[i];
-      if (!h || !data[h.sym]) return;
-      const info   = data[h.sym];
-      const val    = info.price * h.qty;
+      const sym = holdingSyms[i];
+      if (!sym || !data[sym]) return;
+      const info   = data[sym];
+      const qty    = HOLDINGS[sym] ?? 0;
+      const val    = info.price * qty;
       const chg    = info.change_24h ?? 0;
       const sign   = chg >= 0 ? '+' : '';
       const color  = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
-      const valStr = val >= 1000 ? '$' + (val / 1000).toFixed(1) + 'k' : '$' + val.toFixed(0);
+      const valStr = val >= 1000 ? '$' + (val / 1000).toFixed(1) + 'k' : '$' + val.toFixed(2);
       const amountEl = item.querySelector('.rev-amount');
       const changeEl = item.querySelector('.rev-change');
       if (amountEl) amountEl.textContent = valStr;
@@ -1832,10 +2201,893 @@
     return Math.floor(diff/86400000) + 'd ago';
   }
 
+  // ─── Holdings Editor ────────────────────────────────────────────────────
+  function openHoldings() {
+    renderHoldingsForm();
+    const panel    = document.getElementById('holdings-panel');
+    const backdrop = document.getElementById('holdings-backdrop');
+    panel.style.display    = 'flex';
+    backdrop.style.display = 'block';
+    setTimeout(() => { panel.style.transform = 'translateX(0)'; }, 10);
+  }
+
+  function closeHoldings() {
+    const panel    = document.getElementById('holdings-panel');
+    const backdrop = document.getElementById('holdings-backdrop');
+    panel.style.transform = 'translateX(100%)';
+    setTimeout(() => { panel.style.display = 'none'; backdrop.style.display = 'none'; }, 350);
+  }
+
+  function renderHoldingsForm() {
+    const symbols = ['BTC','ETH','SOL','MATIC','AVAX','LINK','DOT','ADA','DOGE'];
+    const icons   = { BTC:'₿', ETH:'Ξ', SOL:'◎', MATIC:'⬡', AVAX:'▲', LINK:'⬡', DOT:'●', ADA:'₳', DOGE:'Ð' };
+    const names   = { BTC:'Bitcoin', ETH:'Ethereum', SOL:'Solana', MATIC:'Polygon', AVAX:'Avalanche', LINK:'Chainlink', DOT:'Polkadot', ADA:'Cardano', DOGE:'Dogecoin' };
+
+    const rows = symbols.map(sym => {
+      const qty   = HOLDINGS[sym] ?? 0;
+      const price = PRICES[sym]   ?? 0;
+      const val   = price * qty;
+      const valStr = val > 0
+        ? (val >= 1000 ? '$' + (val/1000).toFixed(2) + 'k' : '$' + val.toFixed(2))
+        : '—';
+      const [bg, accent] = COLORS[sym] || ['rgba(255,255,255,0.08)','#8892a4'];
+      return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+          <div style="width:34px;height:34px;border-radius:9px;background:${bg};color:${accent};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${icons[sym]}</div>
+          <div style="flex:1;">
+            <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:#e8eaf0;">${sym}</div>
+            <div style="font-size:10px;color:#5a6070;">${names[sym]} · $${price < 1 ? price.toFixed(4) : Math.round(price).toLocaleString()}</div>
+          </div>
+          <div style="text-align:right;min-width:60px;">
+            <div style="font-size:10px;color:#5a6070;margin-bottom:3px;">≈ ${valStr}</div>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value="${qty > 0 ? qty : ''}"
+              placeholder="0"
+              data-sym="${sym}"
+              onchange="updateHolding('${sym}', this.value)"
+              oninput="refreshHoldingValue('${sym}', this.value)"
+              style="width:90px;background:#141821;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 8px;color:#e8eaf0;font-family:'DM Mono',monospace;font-size:12px;outline:none;text-align:right;"
+              onfocus="this.style.borderColor='rgba(0,245,196,0.4)'"
+              onblur="this.style.borderColor='rgba(255,255,255,0.08)'"
+            >
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('holdings-rows').innerHTML = rows;
+    refreshTotalPreview();
+  }
+
+  function updateHolding(sym, val) {
+    HOLDINGS[sym] = parseFloat(val) || 0;
+    saveHoldings(HOLDINGS);
+    refreshTotalPreview();
+    if (Object.keys(liveData).length > 0) updateStatCards(liveData);
+    showToast('success', 'Holdings Saved', sym + ' updated to ' + (HOLDINGS[sym] || 0));
+  }
+
+  function refreshHoldingValue(sym, val) {
+    const qty   = parseFloat(val) || 0;
+    const price = PRICES[sym] ?? 0;
+    const val2  = qty * price;
+    const valStr = val2 > 0
+      ? (val2 >= 1000 ? '$' + (val2/1000).toFixed(2) + 'k' : '$' + val2.toFixed(2))
+      : '—';
+    // Update the "≈ $xxx" preview next to the input
+    const input = document.querySelector('input[data-sym="' + sym + '"]');
+    if (input) {
+      const preview = input.closest('div[style*="display:flex"]').querySelector('div[style*="text-align:right"] div');
+      if (preview) preview.textContent = '≈ ' + valStr;
+    }
+    refreshTotalPreview();
+  }
+
+  function refreshTotalPreview() {
+    let total = 0;
+    document.querySelectorAll('input[data-sym]').forEach(input => {
+      const sym = input.dataset.sym;
+      const qty = parseFloat(input.value) || 0;
+      total += (PRICES[sym] ?? 0) * qty;
+    });
+    const el = document.getElementById('holdings-total');
+    if (el) {
+      el.textContent = total >= 1000
+        ? '$' + (total/1000).toFixed(2) + 'k'
+        : '$' + total.toFixed(2);
+    }
+  }
+
+  // ─── Main View Switcher (All Assets / NFTs / DeFi etc.) ─────────────────
+  let nftViewLoaded = false;
+
+  function switchMainView(view) {
+    // Update pill buttons
+    ['all','defi','nft','layer1','stable'].forEach(k => {
+      const btn = document.getElementById('view-btn-' + k);
+      if (btn) btn.className = k === view ? 'pill-btn primary' : 'pill-btn ghost';
+    });
+
+    const isNft = view === 'nft';
+
+    // Swap center content
+    document.getElementById('view-crypto').style.display = isNft ? 'none' : 'block';
+    document.getElementById('view-nft').style.display    = isNft ? 'block' : 'none';
+
+    // Swap right column
+    document.getElementById('right-crypto').style.display = isNft ? 'none' : 'flex';
+    document.getElementById('right-nft').style.display    = isNft ? 'flex' : 'none';
+
+    if (isNft && !nftViewLoaded) {
+      nftViewLoaded = true;
+      loadNftView();
+    }
+  }
+
+  // ─── Load all NFT view data ───────────────────────────────────────────────
+  async function loadNftView() {
+    loadNvNFTs();
+    loadNvWatchlist();
+    loadNvFomo();
+    loadNvWhales();
+    loadNvNewsTicker();
+    loadRightNft();
+  }
+
+  function loadRightNft() {
+    // Populate right column NFT stats
+    const list = loadWatchlist();
+
+    // Watch count
+    const rcWatch = document.getElementById('rc-watch');
+    if (rcWatch) rcWatch.textContent = list.length;
+
+    // Top watched collection
+    const rcTopWatched = document.getElementById('rc-top-watched');
+    if (rcTopWatched && list.length > 0) {
+      const top = list[0];
+      rcTopWatched.innerHTML = `
+        <div class="feed-item" style="padding:8px 0;">
+          <div class="feed-thumb" style="width:38px;height:38px;">
+            ${top.image ? `<img src="${top.image}" loading="lazy" onerror="this.parentElement.textContent='🖼'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">` : '🖼'}
+          </div>
+          <div class="feed-body">
+            <div class="feed-name" style="font-size:11px;">${top.name}</div>
+            <div class="feed-meta">Floor: <span id="rc-top-floor-val">${top.floorPrice ? top.floorPrice.toFixed(3) + ' ETH' : '—'}</span></div>
+          </div>
+        </div>
+        ${list.length > 1 ? `<div style="font-size:9px;color:var(--muted);text-align:right;margin-top:2px;">+${list.length-1} more in watchlist</div>` : ''}`;
+    }
+
+    // Fetch live top floor from trending for rc-top-floor stat box
+    fetch('/api/nft/trending').then(r=>r.json()).then(json => {
+      if (json.ok && json.data.length) {
+        const top = json.data[0];
+        const el  = document.getElementById('rc-top-floor');
+        if (el) el.textContent = top.floor ? top.floor.toFixed(2) + ' ETH' : '—';
+      }
+    }).catch(() => {});
+  }
+
+  // My NFTs strip in NFT view
+  async function loadNvNFTs() {
+    const strip = document.getElementById('nv-nft-strip');
+    const count = document.getElementById('nv-nft-count');
+    const statTotal = document.getElementById('nv-total');
+    const statValue = document.getElementById('nv-value');
+    try {
+      const res  = await fetch('/api/nfts');
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      const nfts = json.data || [];
+      if (count)      count.textContent      = nfts.length + ' total';
+      if (statTotal)  statTotal.textContent  = nfts.length;
+
+      // Also update right column
+      const rcTotal = document.getElementById('rc-total');
+      if (rcTotal) rcTotal.textContent = nfts.length;
+
+      // Estimate value
+      let totalEth = 0;
+      nfts.forEach(n => { totalEth += (n.floorPrice || 0); });
+      if (statValue) {
+        statValue.textContent = totalEth > 0 ? totalEth.toFixed(2) + ' ETH' : 'Set floors →';
+      }
+      const rcValue = document.getElementById('rc-value');
+      if (rcValue) rcValue.textContent = totalEth > 0 ? totalEth.toFixed(2) + ' ETH' : '—';
+
+      const gradients = [
+        'linear-gradient(135deg,#0d2a22,#00f5c4)','linear-gradient(135deg,#1a0a2e,#7b5ea7)',
+        'linear-gradient(135deg,#1a0a1a,#e040fb)','linear-gradient(135deg,#0a1a2a,#00bcd4)',
+        'linear-gradient(135deg,#1a1a0a,#ffd600)','linear-gradient(135deg,#1a0a10,#f7931a)',
+      ];
+      const emojis = ['🦊','👾','🌀','🤖','🐉','💎','🌙','⚡','🦁','🐸','🔮','🎭'];
+
+      strip.innerHTML = nfts.length === 0
+        ? '<div style="font-size:11px;color:var(--muted2);padding:10px 0;">No NFTs found in wallet.</div>'
+        : nfts.slice(0, 15).map((nft, i) => {
+            const floor   = nft.floorPrice ? nft.floorPrice.toFixed(3) + ' ETH' : '—';
+            const imgHtml = nft.image
+              ? `<img src="${nft.image}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.parentElement.innerHTML='${emojis[i%12]}'">` : emojis[i%12];
+            return `<div class="nft-card" onclick="window.location.href='/nfts.html'" style="cursor:pointer;">
+              <div class="nft-thumb" style="background:${gradients[i%gradients.length]}">${imgHtml}</div>
+              <div class="nft-info">
+                <div class="nft-name">${nft.name || '#' + nft.tokenId}</div>
+                <div class="nft-price">${floor}</div>
+              </div>
+            </div>`;
+          }).join('');
+    } catch {
+      strip.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:10px 0;">Could not load NFTs.</div>';
+    }
+  }
+
+  // Watchlist in NFT view
+  function loadNvWatchlist() {
+    const el    = document.getElementById('nv-watchlist');
+    const countEl = document.getElementById('nv-watch-count');
+    const statEl  = document.getElementById('nv-watch');
+    const list  = loadWatchlist();
+    if (statEl)  statEl.textContent  = list.length;
+    if (countEl) countEl.textContent = list.length + ' saved';
+    if (list.length === 0) {
+      el.innerHTML = `<div style="padding:20px 0;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">⭐</div>
+        <div style="font-size:11px;color:var(--muted2);">No collections saved yet.<br>Use Search to add some.</div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = list.slice(0, 6).map(item => `
+      <div class="feed-item">
+        <div class="feed-thumb">${item.image ? `<img src="${item.image}" loading="lazy" onerror="this.parentElement.textContent='🖼'">` : '🖼'}</div>
+        <div class="feed-body">
+          <div class="feed-name">${item.name}</div>
+          <div class="feed-meta">Saved ${timeAgo(item.savedAt)}</div>
+        </div>
+        <div class="feed-right">
+          <div class="feed-price" id="nvwl-floor-${item.slug}">${item.floorPrice ? item.floorPrice.toFixed(3) + ' ETH' : '—'}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">${item.volume24h ? item.volume24h.toFixed(1) + ' ETH vol' : ''}</div>
+        </div>
+      </div>`).join('');
+
+    // Refresh floors in background
+    list.slice(0, 6).forEach(async item => {
+      try {
+        const res  = await fetch('/api/nft/collection/' + item.slug);
+        const json = await res.json();
+        if (json.ok) {
+          const el2 = document.getElementById('nvwl-floor-' + item.slug);
+          if (el2) el2.textContent = json.data.floorPrice ? json.data.floorPrice.toFixed(3) + ' ETH' : '—';
+        }
+      } catch {}
+    });
+  }
+
+  // FOMO in NFT view
+  async function loadNvFomo() {
+    const el = document.getElementById('nv-fomo');
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:6px 0;">Loading trending…</div>';
+    try {
+      const res  = await fetch('/api/nft/trending');
+      const json = await res.json();
+      if (!json.ok || !json.data.length) throw new Error();
+      el.innerHTML = json.data.slice(0, 5).map(c => {
+        const isUp = (c.change24h || 0) >= 0;
+        return `<div class="feed-item">
+          <div class="feed-thumb">${c.image ? `<img src="${c.image}" loading="lazy" onerror="this.parentElement.textContent='🖼'">` : '🖼'}</div>
+          <div class="feed-body">
+            <div class="feed-name">${c.name}</div>
+            <div class="feed-meta">Vol: ${c.volume24h?.toFixed(1) || '—'} ETH/24h</div>
+          </div>
+          <div class="feed-right">
+            <div class="feed-price">${c.floor?.toFixed(3) || '—'} ETH</div>
+            <div class="feed-change" style="color:${isUp ? 'var(--cyan)' : 'var(--pink)'}">${isUp ? '+' : ''}${(c.change24h||0).toFixed(1)}%</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch { el.innerHTML = fomoFallback(); }
+  }
+
+  // Whale activity in NFT view
+  async function loadNvWhales() {
+    const el = document.getElementById('nv-whales');
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:6px 0;">Loading whale activity…</div>';
+    try {
+      const res  = await fetch('/api/nft/whales');
+      const json = await res.json();
+      if (!json.ok || !json.data.length) throw new Error();
+      el.innerHTML = json.data.slice(0, 5).map(e => `
+        <div class="feed-item">
+          <div class="feed-thumb">${e.image ? `<img src="${e.image}" loading="lazy" onerror="this.parentElement.textContent='🐋'">` : '🐋'}</div>
+          <div class="feed-body">
+            <div class="feed-name">${e.name}</div>
+            <div class="feed-meta">
+              <span class="feed-badge badge-buy">🟢 Bought</span>
+              &nbsp;<span style="color:var(--muted)">${e.time}</span>
+            </div>
+          </div>
+          <div class="feed-right">
+            <div class="feed-price">${e.price} ETH</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px;">${e.wallet}</div>
+          </div>
+        </div>`).join('');
+    } catch { el.innerHTML = whaleFallback(); }
+  }
+
+  // News ticker in NFT view — clickable headlines, slow scroll, fade edge
+  let _tickerArticles = []; // store URLs for click handling
+
+  async function loadNvNewsTicker() {
+    const el = document.getElementById('nv-ticker-text');
+    try {
+      const res  = await fetch('/api/nft/news');
+      const json = await res.json();
+      if (!json.ok || !json.data.length) throw new Error();
+      _tickerArticles = json.data;
+      buildTicker(json.data.map(n => ({ title: n.title, url: n.url })));
+    } catch {
+      const fallback = [
+        { title: 'NFT market activity picking up across major collections', url: 'https://decrypt.co/news' },
+        { title: 'Whale movements detected on Ethereum mainnet', url: 'https://decrypt.co/news' },
+        { title: 'New collection launches expected this week', url: 'https://decrypt.co/news' },
+        { title: 'Floor price updates across top 10 collections', url: 'https://decrypt.co/news' },
+        { title: 'OpenSea volume rising — 34% week-over-week', url: 'https://decrypt.co/news' },
+      ];
+      buildTicker(fallback);
+    }
+  }
+
+  function buildTicker(items) {
+    const el = document.getElementById('nv-ticker-text');
+
+    // Build clickable spans — duplicate set for seamless loop
+    const makeSpans = () => items.map((item, i) =>
+      `<span class="ticker-headline" data-url="${item.url}"
+         style="cursor:pointer;padding:0 6px;transition:color 0.15s;"
+         onmouseover="this.style.color='var(--cyan)';tickerPause(true)"
+         onmouseout="this.style.color='';tickerPause(false)"
+         onclick="window.open('${item.url}','_blank')"
+       >${item.title}</span><span style="color:rgba(0,245,196,0.3);padding:0 6px;">·</span>`
+    ).join('');
+
+    el.innerHTML = makeSpans() + makeSpans(); // duplicate for loop
+    el.style.display   = 'inline-block';
+    el.style.whiteSpace = 'nowrap';
+    el.style.willChange = 'transform';
+
+    // Start scroll after paint so offsetWidth is accurate
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const halfW    = el.offsetWidth / 2;
+        const speed    = 35; // px per second — slow and readable
+        const duration = halfW / speed;
+        el.style.animation = `tickerScroll ${duration}s linear infinite`;
+      });
+    });
+  }
+
+  function tickerPause(pause) {
+    const el = document.getElementById('nv-ticker-text');
+    if (el) el.style.animationPlayState = pause ? 'paused' : 'running';
+  }
+
+  // ─── NFT Discover Tabs ──────────────────────────────────────────────────
+  let nftTabLoaded = { mine: false, fomo: false, whale: false, news: false };
+
+  function switchNftTab(tab) {
+    ['mine','fomo','whale','news','search','watch'].forEach(t => {
+      document.getElementById('nft-pane-' + t).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    });
+    if (!nftTabLoaded[tab]) {
+      nftTabLoaded[tab] = true;
+      if (tab === 'fomo')  loadFomoFeed();
+      if (tab === 'whale') loadWhaleFeed();
+      if (tab === 'news')  loadNewsFeed();
+    }
+    if (tab === 'search') {
+      setTimeout(() => document.getElementById('nft-search-input')?.focus(), 50);
+    }
+    if (tab === 'watch') renderWatchlist();
+  }
+
+  // ─── Watchlist ────────────────────────────────────────────────────────────
+  function loadWatchlist() {
+    try { return JSON.parse(localStorage.getItem('cipher_watchlist') || '[]'); }
+    catch { return []; }
+  }
+
+  function saveWatchlist(list) {
+    localStorage.setItem('cipher_watchlist', JSON.stringify(list));
+    // Update tab badge
+    updateWatchBadge();
+  }
+
+  function updateWatchBadge() {
+    const list = loadWatchlist();
+    const btn  = document.getElementById('tab-watch');
+    if (btn) btn.textContent = '⭐ Watch' + (list.length ? ' (' + list.length + ')' : '');
+  }
+
+  function isWatched(slug) {
+    return loadWatchlist().some(c => c.slug === slug);
+  }
+
+  function toggleWatch(collectionData) {
+    let list = loadWatchlist();
+    const idx = list.findIndex(c => c.slug === collectionData.slug);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+      showToast('delete', 'Removed from Watchlist', collectionData.name);
+    } else {
+      list.unshift({
+        slug:       collectionData.slug,
+        name:       collectionData.name,
+        image:      collectionData.image,
+        floorPrice: collectionData.floorPrice,
+        volume24h:  collectionData.volume24h,
+        openseaUrl: collectionData.openseaUrl,
+        savedAt:    Date.now(),
+      });
+      showToast('success', 'Added to Watchlist ⭐', collectionData.name);
+    }
+    saveWatchlist(list);
+    // Refresh watch button in search result if visible
+    updateWatchButton(collectionData.slug);
+    // Refresh watchlist pane if open
+    if (document.getElementById('nft-pane-watch').style.display !== 'none') {
+      renderWatchlist();
+    }
+  }
+
+  function updateWatchButton(slug) {
+    const btn = document.getElementById('watch-btn-' + slug);
+    if (!btn) return;
+    const watched = isWatched(slug);
+    btn.textContent  = watched ? '⭐ Watching' : '☆ Add to Watchlist';
+    btn.style.background = watched ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.04)';
+    btn.style.borderColor = watched ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.08)';
+    btn.style.color = watched ? '#fbbf24' : 'var(--muted2)';
+  }
+
+  async function renderWatchlist() {
+    const el   = document.getElementById('watchlist-feed');
+    const list = loadWatchlist();
+
+    if (list.length === 0) {
+      el.innerHTML = `<div style="padding:30px 0;text-align:center;">
+        <div style="font-size:32px;margin-bottom:8px;">⭐</div>
+        <div style="font-family:'Syne',sans-serif;font-size:13px;color:var(--text);margin-bottom:4px;">No collections saved yet</div>
+        <div style="font-size:11px;color:var(--muted2);">Use the 🔍 Search tab to find collections<br>then click "Add to Watchlist"</div>
+      </div>`;
+      return;
+    }
+
+    // Show saved items immediately, then refresh floor prices
+    renderWatchItems(list);
+
+    // Refresh floor prices in background
+    list.forEach(async (item, i) => {
+      try {
+        const res  = await fetch('/api/nft/collection/' + item.slug);
+        const json = await res.json();
+        if (json.ok) {
+          list[i].floorPrice = json.data.floorPrice;
+          list[i].volume24h  = json.data.volume24h;
+          saveWatchlist(list);
+          // Update just this row's price
+          const priceEl = document.getElementById('wl-floor-' + item.slug);
+          const volEl   = document.getElementById('wl-vol-'   + item.slug);
+          if (priceEl) priceEl.textContent = json.data.floorPrice ? json.data.floorPrice.toFixed(3) + ' ETH' : '—';
+          if (volEl)   volEl.textContent   = json.data.volume24h  ? json.data.volume24h.toFixed(1)  + ' ETH' : '—';
+        }
+      } catch { /* silent fail */ }
+    });
+  }
+
+  function renderWatchItems(list) {
+    const el = document.getElementById('watchlist-feed');
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:10px;color:var(--muted2);">${list.length} collection${list.length !== 1 ? 's' : ''} · prices refreshing…</span>
+        <button onclick="clearWatchlist()" style="font-size:9px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;" onmouseover="this.style.color='var(--pink)'" onmouseout="this.style.color='var(--muted)'">Clear all</button>
+      </div>
+      ${list.map(item => `
+        <div class="feed-item" style="align-items:center;">
+          <div class="feed-thumb">${item.image ? `<img src="${item.image}" loading="lazy" onerror="this.parentElement.textContent='🖼'">` : '🖼'}</div>
+          <div class="feed-body">
+            <div class="feed-name">${item.name}</div>
+            <div class="feed-meta">
+              Vol 24h: <span id="wl-vol-${item.slug}">${item.volume24h ? item.volume24h.toFixed(1) + ' ETH' : '—'}</span>
+              &nbsp;·&nbsp; Saved ${timeAgo(item.savedAt)}
+            </div>
+          </div>
+          <div class="feed-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <div class="feed-price" id="wl-floor-${item.slug}">${item.floorPrice ? item.floorPrice.toFixed(3) + ' ETH' : '—'}</div>
+            <div style="display:flex;gap:4px;">
+              <button onclick="quickSearch('${item.slug}');switchNftTab('search')" style="font-size:9px;padding:2px 7px;background:rgba(0,245,196,0.08);border:1px solid rgba(0,245,196,0.2);border-radius:4px;color:var(--cyan);cursor:pointer;">Info</button>
+              <button onclick="removeFromWatch('${item.slug}')" style="font-size:9px;padding:2px 7px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:4px;color:#ef4444;cursor:pointer;">✕</button>
+            </div>
+          </div>
+        </div>`).join('')}`;
+  }
+
+  function removeFromWatch(slug) {
+    let list = loadWatchlist().filter(c => c.slug !== slug);
+    saveWatchlist(list);
+    renderWatchlist();
+  }
+
+  function clearWatchlist() {
+    if (!confirm('Remove all watchlist collections?')) return;
+    saveWatchlist([]);
+    renderWatchlist();
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 3600000)  return Math.floor(diff/60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+    return Math.floor(diff/86400000) + 'd ago';
+  }
+
+  // ─── NFT Search ────────────────────────────────────────────────────────
+  function quickSearch(slug) {
+    document.getElementById('nft-search-input').value = slug;
+    runNftSearch();
+  }
+
+  async function runNftSearch() {
+    const raw   = document.getElementById('nft-search-input').value.trim();
+    const results = document.getElementById('nft-search-results');
+    if (!raw) return;
+
+    // Determine if input is a contract address or a slug
+    const isContract = /^0x[0-9a-fA-F]{40}$/.test(raw);
+    const query      = raw.toLowerCase().replace(/\s+/g, '-');
+
+    results.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:16px 0;color:var(--muted2);font-size:11px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 1-9 9"/></svg>
+      Searching for <strong style="color:var(--text)">${raw}</strong>…
+    </div>`;
+
+    try {
+      // Fetch collection info + stats in parallel
+      const endpoint = isContract
+        ? `/api/nft/search-contract/${raw}`
+        : `/api/nft/collection/${query}`;
+
+      const res  = await fetch(endpoint);
+      const json = await res.json();
+
+      if (!json.ok) throw new Error(json.error || 'Not found');
+      renderSearchResult(json.data);
+
+    } catch (err) {
+      results.innerHTML = `<div style="padding:16px 0;text-align:center;">
+        <div style="font-size:28px;margin-bottom:8px;">🔍</div>
+        <div style="font-family:'Syne',sans-serif;font-size:13px;color:var(--text);margin-bottom:4px;">Collection not found</div>
+        <div style="font-size:11px;color:var(--muted2);">Try the exact OpenSea slug — e.g. <span style="color:var(--cyan)">boredapeyachtclub</span></div>
+      </div>`;
+    }
+  }
+
+  let _lastSearchResult = null; // holds current search result for watchlist button
+
+  function renderSearchResult(c) {
+    _lastSearchResult = c; // store so onclick can reference it cleanly
+    const results = document.getElementById('nft-search-results');
+    const vol7dStr  = c.volume7d    ? c.volume7d.toFixed(1)    + ' ETH' : '—';
+    const volTotStr = c.volumeTotal ? (c.volumeTotal/1000).toFixed(1) + 'k ETH' : '—';
+    const mcStr     = c.marketCap   ? (c.marketCap/1000).toFixed(1)   + 'k ETH' : '—';
+    const avgStr    = c.averagePrice ? c.averagePrice.toFixed(3) + ' ETH' : '—';
+
+    results.innerHTML = `
+      <!-- Banner + image -->
+      <div style="position:relative;border-radius:10px;overflow:hidden;margin-bottom:12px;background:var(--card2);height:80px;">
+        ${c.bannerImage ? `<img src="${c.bannerImage}" style="width:100%;height:100%;object-fit:cover;opacity:0.6;" onerror="this.style.display='none'">` : ''}
+        <div style="position:absolute;bottom:-20px;left:12px;width:44px;height:44px;border-radius:10px;border:2px solid var(--bg2);overflow:hidden;background:var(--card);">
+          ${c.image ? `<img src="${c.image}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;">🖼</div>'}
+        </div>
+      </div>
+
+      <!-- Name + desc -->
+      <div style="margin-top:24px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);">${c.name}</span>
+          <a href="${c.openseaUrl}" target="_blank" style="color:var(--cyan);font-size:10px;text-decoration:none;opacity:0.7;" title="View on OpenSea">↗</a>
+        </div>
+        ${c.description ? `<div style="font-size:10px;color:var(--muted2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${c.description}</div>` : ''}
+      </div>
+
+      <!-- Key stats grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="background:rgba(0,245,196,0.06);border:1px solid rgba(0,245,196,0.12);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--cyan);text-transform:uppercase;letter-spacing:0.1em;">Floor</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);margin-top:2px;">${c.floorPrice ? c.floorPrice.toFixed(3) : '—'} <span style="font-size:10px;color:var(--muted2);">ETH</span></div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;">24h Vol</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);margin-top:2px;">${c.volume24h ? c.volume24h.toFixed(1) : '—'} ETH</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;">24h Sales</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);margin-top:2px;">${c.sales24h || '—'}</div>
+        </div>
+      </div>
+
+      <!-- Secondary stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;">7d Volume</div>
+          <div style="font-family:'Syne',sans-serif;font-size:12px;color:var(--text);margin-top:2px;">${vol7dStr}</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;">Avg Price</div>
+          <div style="font-family:'Syne',sans-serif;font-size:12px;color:var(--text);margin-top:2px;">${avgStr}</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;">Market Cap</div>
+          <div style="font-family:'Syne',sans-serif;font-size:12px;color:var(--text);margin-top:2px;">${mcStr}</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;">Total Volume</div>
+          <div style="font-family:'Syne',sans-serif;font-size:12px;color:var(--text);margin-top:2px;">${volTotStr}</div>
+        </div>
+      </div>
+
+      <!-- Action buttons row -->
+      <div style="display:flex;gap:6px;margin-top:2px;">
+        <button id="watch-btn-${c.slug}"
+          onclick="toggleWatch(_lastSearchResult)"
+          style="flex:1;padding:9px;background:${isWatched(c.slug) ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.04)'};border:1px solid ${isWatched(c.slug) ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.08)'};border-radius:8px;color:${isWatched(c.slug) ? '#fbbf24' : 'var(--muted2)'};font-family:'Syne',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;">
+          ${isWatched(c.slug) ? '⭐ Watching' : '☆ Add to Watchlist'}
+        </button>
+        <a href="${c.openseaUrl}" target="_blank" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:9px;background:rgba(0,245,196,0.08);border:1px solid rgba(0,245,196,0.2);border-radius:8px;color:var(--cyan);font-family:'Syne',sans-serif;font-size:11px;font-weight:600;text-decoration:none;transition:all 0.2s;"
+           onmouseover="this.style.background='rgba(0,245,196,0.15)'" onmouseout="this.style.background='rgba(0,245,196,0.08)'">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          OpenSea
+        </a>
+      </div>`;
+  }
+
+  // FOMO — top trending collections from OpenSea
+  async function loadFomoFeed() {
+    const el = document.getElementById('fomo-feed');
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:10px 0;">Loading trending collections…</div>';
+    try {
+      const res  = await fetch('/api/nft/trending');
+      const json = await res.json();
+      if (!json.ok || !json.data.length) throw new Error('No data');
+
+      el.innerHTML = json.data.map(c => {
+        const chg    = c.change24h ?? 0;
+        const isUp   = chg >= 0;
+        const chgStr = (isUp ? '+' : '') + chg.toFixed(1) + '%';
+        const chgCol = isUp ? 'var(--cyan)' : 'var(--pink)';
+        return `<div class="feed-item" onclick="window.open('${c.openseaUrl}','_blank')">
+          <div class="feed-thumb">${c.image ? `<img src="${c.image}" loading="lazy" onerror="this.parentElement.textContent='🖼'">` : '🖼'}</div>
+          <div class="feed-body">
+            <div class="feed-name">${c.name}</div>
+            <div class="feed-meta">Floor: ${c.floor?.toFixed(3) || '—'} ETH &nbsp;·&nbsp; Vol: ${c.volume24h?.toFixed(1) || '—'} ETH</div>
+          </div>
+          <div class="feed-right">
+            <div class="feed-price">${c.floor?.toFixed(3) || '—'} ETH</div>
+            <div class="feed-change" style="color:${chgCol}">${chgStr}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch {
+      el.innerHTML = fomoFallback();
+    }
+  }
+
+  function fomoFallback() {
+    const items = [
+      { name:'Pudgy Penguins', floor:12.4, chg:+8.2,  vol:420, emoji:'🐧' },
+      { name:'Azuki',          floor:8.1,  chg:-3.1,  vol:210, emoji:'🌸' },
+      { name:'BAYC',           floor:32.5, chg:+1.4,  vol:890, emoji:'🐒' },
+      { name:'Doodles',        floor:3.2,  chg:+15.7, vol:130, emoji:'🎨' },
+      { name:'CloneX',         floor:5.8,  chg:-0.9,  vol:175, emoji:'👾' },
+    ];
+    return items.map(c => {
+      const isUp = c.chg >= 0;
+      return `<div class="feed-item">
+        <div class="feed-thumb">${c.emoji}</div>
+        <div class="feed-body">
+          <div class="feed-name">${c.name}</div>
+          <div class="feed-meta">Floor: ${c.floor} ETH &nbsp;·&nbsp; Vol: ${c.vol} ETH/24h</div>
+        </div>
+        <div class="feed-right">
+          <div class="feed-price">${c.floor} ETH</div>
+          <div class="feed-change" style="color:${isUp ? 'var(--cyan)' : 'var(--pink)'}">${isUp ? '+' : ''}${c.chg}%</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // WHALE — recent large sales from OpenSea
+  async function loadWhaleFeed() {
+    const el = document.getElementById('whale-feed');
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:10px 0;">Loading whale activity…</div>';
+    try {
+      const res  = await fetch('/api/nft/whales');
+      const json = await res.json();
+      if (!json.ok || !json.data.length) throw new Error('No data');
+
+      el.innerHTML = json.data.map(e => {
+        const badgeClass = e.type === 'buy' ? 'badge-buy' : e.type === 'mint' ? 'badge-mint' : 'badge-sell';
+        const badgeLabel = e.type === 'buy' ? '🟢 Bought' : e.type === 'mint' ? '🟡 Minted' : '🔴 Sold';
+        return `<div class="feed-item">
+          <div class="feed-thumb">${e.image ? `<img src="${e.image}" loading="lazy" onerror="this.parentElement.textContent='🐋'">` : '🐋'}</div>
+          <div class="feed-body">
+            <div class="feed-name">${e.name}</div>
+            <div class="feed-meta">
+              <span class="feed-badge ${badgeClass}">${badgeLabel} ×${e.qty || 1}</span>
+              &nbsp;<span style="color:var(--muted)">${e.time}</span>
+            </div>
+          </div>
+          <div class="feed-right">
+            <div class="feed-price">${e.price} ETH</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px;">${e.wallet}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch {
+      el.innerHTML = whaleFallback();
+    }
+  }
+
+  function whaleFallback() {
+    const items = [
+      { name:'Pudgy Penguin #8821', type:'buy',  price:'15.2', qty:1, wallet:'0x3f…a2b', time:'2m ago',  emoji:'🐧' },
+      { name:'BAYC #4492',          type:'sell', price:'34.0', qty:1, wallet:'0xd1…44c', time:'8m ago',  emoji:'🐒' },
+      { name:'Azuki #1337',         type:'buy',  price:'9.8',  qty:1, wallet:'0x8a…f91', time:'15m ago', emoji:'🌸' },
+      { name:'CloneX #7701',        type:'sell', price:'6.2',  qty:1, wallet:'0x2c…b30', time:'22m ago', emoji:'👾' },
+      { name:'Doodles #3310',       type:'buy',  price:'3.5',  qty:1, wallet:'0x9e…77d', time:'31m ago', emoji:'🎨' },
+    ];
+    return items.map(e => {
+      const badgeClass = e.type === 'buy' ? 'badge-buy' : 'badge-sell';
+      const badgeLabel = e.type === 'buy' ? '🟢 Bought' : '🔴 Sold';
+      return `<div class="feed-item">
+        <div class="feed-thumb">${e.emoji}</div>
+        <div class="feed-body">
+          <div class="feed-name">${e.name}</div>
+          <div class="feed-meta">
+            <span class="feed-badge ${badgeClass}">${badgeLabel} ×${e.qty}</span>
+            &nbsp;<span style="color:var(--muted)">${e.time}</span>
+          </div>
+        </div>
+        <div class="feed-right">
+          <div class="feed-price">${e.price} ETH</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">${e.wallet}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // NEWS — fetched via server proxy from CoinDesk/NFT news
+  async function loadNewsFeed() {
+    const el = document.getElementById('news-feed');
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:10px 0;">Loading NFT news…</div>';
+    try {
+      const res  = await fetch('/api/nft/news');
+      const json = await res.json();
+      if (!json.ok || !json.data.length) throw new Error('No data');
+      el.innerHTML = json.data.map(n => `
+        <div class="news-item" onclick="window.open('${n.url}','_blank')">
+          <div class="news-source">${n.source}</div>
+          <div class="news-title">${n.title}</div>
+          <div class="news-time">${n.time}</div>
+        </div>`).join('');
+    } catch {
+      el.innerHTML = newsFallback();
+    }
+  }
+
+  function newsFallback() {
+    const items = [
+      { source:'OpenSea Blog', title:'OpenSea 2.0 launches with zero platform fees and new creator tools', time:'1h ago' },
+      { source:'The Block',    title:'NFT trading volume rebounds 34% week-over-week amid new collections', time:'3h ago' },
+      { source:'CoinDesk',     title:'Blur surpasses OpenSea in weekly volume for third consecutive month', time:'5h ago' },
+      { source:'Decrypt',      title:'Pudgy Penguins ecosystem expands with new IP licensing deals', time:'8h ago' },
+      { source:'NFT Now',      title:'Azuki announces Season 2 with new mint mechanics and lore expansion', time:'12h ago' },
+    ];
+    return items.map(n => `
+      <div class="news-item">
+        <div class="news-source">${n.source}</div>
+        <div class="news-title">${n.title}</div>
+        <div class="news-time">${n.time}</div>
+      </div>`).join('');
+  }
+
+  // ─── Overview NFT Strip ─────────────────────────────────────────────────
+  async function loadOverviewNFTs() {
+    try {
+      const res  = await fetch('/api/nfts');
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+
+      const nfts  = json.data || [];
+      const strip = document.getElementById('overview-nft-strip');
+      const count = document.getElementById('nft-strip-count');
+      if (!strip) return;
+
+      if (count) count.textContent = nfts.length + ' total';
+
+      if (nfts.length === 0) {
+        strip.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:10px 0;">No NFTs found in wallet.</div>';
+        return;
+      }
+
+      const gradients = [
+        'linear-gradient(135deg,#0d2a22,#00f5c4)',
+        'linear-gradient(135deg,#1a0a2e,#7b5ea7)',
+        'linear-gradient(135deg,#1a0a1a,#e040fb)',
+        'linear-gradient(135deg,#0a1a2a,#00bcd4)',
+        'linear-gradient(135deg,#1a1a0a,#ffd600)',
+        'linear-gradient(135deg,#1a0a10,#f7931a)',
+        'linear-gradient(135deg,#0a1a10,#22c55e)',
+        'linear-gradient(135deg,#1a1020,#e040fb)',
+      ];
+
+      strip.innerHTML = nfts.slice(0, 12).map((nft, i) => {
+        const floor    = nft.floorPrice;
+        const floorStr = floor ? floor.toFixed(3) + ' ETH' : '—';
+        const imgHtml  = nft.image
+          ? `<img src="${nft.image}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" onerror="this.parentElement.innerHTML='🖼'">`
+          : ['🦊','👾','🌀','🤖','🐉','💎','🌙','⚡','🦁','🐸','🔮','🎭'][i % 12];
+
+        return `<div class="nft-card" onclick="window.location.href='/nfts.html'">
+          <div class="nft-thumb" style="background:${gradients[i % gradients.length]}">${nft.image ? '' : imgHtml}${nft.image ? imgHtml : ''}</div>
+          <div class="nft-info">
+            <div class="nft-name">${nft.name || ('#' + nft.tokenId)}</div>
+            <div class="nft-price">${floorStr}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+    } catch (err) {
+      console.warn('[CIPHER] NFT strip failed:', err.message);
+      // Leave skeleton on error — don't break the page
+    }
+  }
+
+
+  // ─── View switching (Overview / Breakout) ────────────────────────────────
+  function showView(name) {
+    const overview = document.getElementById('view-overview');
+    const breakout = document.getElementById('view-breakout');
+    const navOverview = document.getElementById('nav-overview');
+    const navBreakout = document.getElementById('nav-breakout');
+    if (!overview || !breakout) return;
+
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+    if (name === 'breakout') {
+      overview.classList.add('hidden');
+      breakout.classList.add('active');
+      if (navBreakout) navBreakout.classList.add('active');
+      const frame = document.getElementById('breakout-frame');
+      if (frame && !frame.dataset.loaded) {
+        frame.dataset.loaded = '1';
+        if (!frame.getAttribute('src')) frame.src = '/breakout/';
+      }
+    } else {
+      breakout.classList.remove('active');
+      overview.classList.remove('hidden');
+      if (navOverview) navOverview.classList.add('active');
+    }
+  }
+
   // ─── Init ─────────────────────────────────────────────────────────────────
   updateBadges();
+  updateWatchBadge();
   fetchLivePrices();
   setInterval(fetchLivePrices, 60000);
+  loadOverviewNFTs();
 </script>
 </body>
 </html>

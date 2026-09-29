@@ -1,0 +1,53 @@
+{
+  "pollIntervalMs": 90000,
+  "klinesInterval": "1h",
+  "klinesLimit": 100,
+  "maxSymbols": 80,
+  "minQuoteVolumeUsdt": 2000000,
+  "binanceBaseUrl": "https://data-api.binance.vision",
+  "binanceFallbackUrls": [
+    "https://data-api.binance.vision",
+    "https://api.binance.com",
+    "https://api1.binance.com"
+  ],
+  "requestDelayMs": 80,
+  "weights": {
+    "accumulation": 14,
+    "floorDistance": 12,
+    "bearTrap": 16,
+    "momentumIgnition": 18,
+    "volatilitySqueeze": 12,
+    "volumePressure": 14,
+    "rsiResistance": 14
+  },
+  "notes": "Weights should sum to 100. Engine renormalizes if they do not. Default base URL is data-api.binance.vision (public market data) because api.binance.com may return HTTP 451 in restricted regions.",
+  "excludeBases": [
+    "USDC",
+    "FDUSD",
+    "TUSD",
+    "USDP",
+    "DAI",
+    "BUSD",
+    "USD1",
+    "EUR",
+    "AEUR",
+    "EURI",
+    "USDE",
+    "BFUSD",
+    "XUSD",
+    "PAXG",
+    "XAUT",
+    "WBTC",
+    "BTCB",
+    "SPYB",
+    "GOOGLB",
+    "AAPLB",
+    "AMZNB",
+    "METAB",
+    "NVDAB",
+    "TSLAB",
+    "COINB",
+    "MSTRB",
+    "CRCLB"
+  ]
+}
