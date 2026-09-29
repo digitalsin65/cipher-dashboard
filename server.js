@@ -4,6 +4,8 @@
 //  ▼▼▼  ENTER YOUR KEYS BELOW  ▼▼▼
 // ============================================================
 
+// Load local secrets from .env (gitignored). Built into Node 20.12+.
+try { process.loadEnvFile(require('path').join(__dirname, '.env')); } catch (e) { /* no .env file, use real environment */ }
 const CMC_API_KEY     = process.env.CMC_API_KEY     || 'PASTE_YOUR_CMC_KEY_HERE';
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || 'PASTE_YOUR_ALCHEMY_KEY_HERE';
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY || 'PASTE_YOUR_OPENSEA_KEY_HERE';
