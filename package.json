@@ -9,12 +9,15 @@
     "dev:breakout": "npm run start --prefix breakout-score",
     "dev:cipher": "node server.js",
     "dev": "npm run build:breakout && concurrently -n cipher,breakout -c cyan,magenta \"npm run dev:cipher\" \"npm run dev:breakout\"",
-    "start": "npm run dev"
+    "start": "node host.js",
+    "start:local": "npm run dev"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "http-proxy-middleware": "^2.0.9"
+    "http-proxy-middleware": "^2.0.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

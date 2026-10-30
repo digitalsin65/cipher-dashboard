@@ -28,6 +28,31 @@ const BREAKOUT_TARGET = `http://127.0.0.1:${BREAKOUT_PORT}`;
 app.use(cors());
 app.use(express.json());
 
+// ---- Sign-in (HTTP Basic). Required in production; set DASH_USER and DASH_PASSWORD on the host. ----
+const DASH_USER = process.env.DASH_USER || 'mike';
+const DASH_PASSWORD = process.env.DASH_PASSWORD || '';
+if (process.env.NODE_ENV === 'production' && !DASH_PASSWORD) {
+  console.error('DASH_PASSWORD is not set. Refusing to start a public dashboard without a sign-in.');
+  process.exit(1);
+}
+if (DASH_PASSWORD) {
+  const crypto = require('crypto');
+  const safeEq = (a, b) => {
+    const ha = crypto.createHash('sha256').update(String(a)).digest();
+    const hb = crypto.createHash('sha256').update(String(b)).digest();
+    return crypto.timingSafeEqual(ha, hb);
+  };
+  app.use((req, res, next) => {
+    const h = req.headers.authorization || '';
+    if (h.startsWith('Basic ')) {
+      const [u, ...rest] = Buffer.from(h.slice(6), 'base64').toString().split(':');
+      if (safeEq(u, DASH_USER) & safeEq(rest.join(':'), DASH_PASSWORD)) return next();
+    }
+    res.set('WWW-Authenticate', 'Basic realm="CIPHER", charset="UTF-8"');
+    res.status(401).send('Sign in required');
+  });
+}
+
 // Allow our own scripts to run (overrides wallet extension CSP interference)
 app.use((req, res, next) => {
   res.setHeader(
