@@ -23,6 +23,14 @@
     --muted2: #8892a4;
   }
 
+  body.light {
+    --bg: #f4f6fa; --bg2: #eef1f6; --bg3: #e6eaf1; --card: #ffffff; --card2: #eef1f6;
+    --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.14);
+    --cyan: #00a888; --cyan2: #008f74; --pink: #c2189b; --text: #151a24; --muted: #6b7385; --muted2: #4f5869;
+  }
+  body.light::before { opacity: 0.25; }
+  body.light #view-breakout, body.light #view-breakout iframe { background: var(--bg); }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -657,7 +665,7 @@
 
   /* Ticker */
   .ticker-bar {
-    background: rgba(0,245,196,0.04);
+    background: linear-gradient(rgba(0,245,196,0.04), rgba(0,245,196,0.04)), var(--bg);
     border-top: 1px solid var(--border);
     overflow: hidden;
     height: 32px;
@@ -759,6 +767,53 @@
   #view-breakout.active {
     display: flex;
   }
+  .main { padding-bottom: 40px; }
+  #view-settings { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
+  #view-settings.active { display: flex; }
+  .st-sec { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .st-sec h3 { font-family: 'Syne', sans-serif; font-size: 15px; color: var(--text); margin-bottom: 4px; }
+  .st-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text); }
+  .st-row input[type=text], .st-row select { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+  .st-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .st-seg button { background: var(--card2); border: 0; color: var(--muted2); padding: 7px 14px; font-size: 13px; cursor: pointer; }
+  .st-seg button.on { background: var(--cyan); color: #06100d; }
+  .st-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--card2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: var(--text); }
+  .st-chip input { accent-color: var(--cyan); }
+  .st-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; background: var(--muted); }
+  .wl-btn.danger { color: var(--pink); }
+  #view-markets { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
+  #view-markets.active { display: flex; }
+  #view-wallet { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
+  #view-wallet.active { display: flex; }
+  #view-history { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
+  #view-history.active { display: flex; }
+  .hs-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .hs-tab { background: var(--card); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
+  .hs-tab.on { color: var(--text); border-color: var(--cyan); }
+  .hs-form { display: flex; gap: 8px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 14px; align-items: center; }
+  .hs-form input, .hs-form select { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 10px; font-size: 13px; width: 120px; }
+  .hs-del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; }
+  .hs-del:hover { color: var(--pink); }
+  .wl-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  .wl-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 200px; flex: 1; }
+  .wl-card .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .wl-card .val { color: var(--text); font-family: 'Syne', sans-serif; font-size: 24px; margin-top: 6px; }
+  .wl-btn { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .wl-bar { height: 6px; background: var(--card2); border-radius: 3px; width: 90px; display: inline-block; vertical-align: middle; margin-left: 8px; overflow: hidden; }
+  .wl-bar span { display: block; height: 100%; background: var(--cyan); }
+  .mk-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .mk-head h2 { font-family: 'Syne', sans-serif; font-size: 22px; color: var(--text); margin: 0; }
+  .mk-sub { color: var(--muted); font-size: 12px; }
+  .mk-search { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; width: 220px; }
+  .mk-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .mk-table th { text-align: right; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  .mk-table th:nth-child(-n+2), .mk-table td:nth-child(-n+2) { text-align: left; }
+  .mk-table td { text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+  .mk-table tr:last-child td { border-bottom: 0; }
+  .mk-table tbody tr:hover { background: var(--card2); }
+  .mk-sym { color: var(--muted); font-size: 11px; margin-left: 6px; }
+  .mk-aud { color: var(--muted); font-size: 11px; }
+  .mk-up { color: var(--cyan); } .mk-down { color: var(--pink); }
   #view-breakout iframe {
     flex: 1;
     width: 100%;
@@ -794,7 +849,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Overview
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" id="nav-markets" onclick="showView('markets'); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Markets
         <span class="badge">LIVE</span>
@@ -808,7 +863,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         NFTs
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" id="nav-history" onclick="showView('history'); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         History
       </a>
@@ -823,11 +878,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
         Portfolio
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" id="nav-wallet" onclick="showView('wallet'); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
         Wallet
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" id="nav-settings" onclick="showView('settings'); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
         Settings
       </a>
@@ -1410,6 +1465,138 @@
     </div>
     </div><!-- /#view-overview -->
 
+    <div id="view-markets" aria-label="Markets">
+      <div class="mk-head">
+        <div>
+          <h2>Markets</h2>
+          <div class="mk-sub" id="mk-status">Top 100 coins by market cap · loading…</div>
+        </div>
+        <input class="mk-search" id="mk-search" placeholder="Search coin or symbol" oninput="renderMarkets()">
+      </div>
+      <table class="mk-table">
+        <thead><tr>
+          <th onclick="sortMarkets('rank')">#</th>
+          <th onclick="sortMarkets('name')">Coin</th>
+          <th onclick="sortMarkets('price')">Price</th>
+          <th onclick="sortMarkets('change_1h')">1h</th>
+          <th onclick="sortMarkets('change_24h')">24h</th>
+          <th onclick="sortMarkets('change_7d')">7d</th>
+          <th onclick="sortMarkets('volume_24h')">Volume 24h</th>
+          <th onclick="sortMarkets('market_cap')">Market cap</th>
+        </tr></thead>
+        <tbody id="mk-body"><tr><td colspan="8" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div id="view-wallet" aria-label="Wallet">
+      <div class="mk-head">
+        <div>
+          <h2>Wallet</h2>
+          <div class="mk-sub" id="wl-status">Your coin holdings at live prices</div>
+        </div>
+        <button class="wl-btn" onclick="openHoldings()">Edit holdings</button>
+      </div>
+      <div class="wl-cards">
+        <div class="wl-card"><div class="lbl">Total value</div><div class="val" id="wl-total">—</div></div>
+        <div class="wl-card"><div class="lbl">24h change</div><div class="val" id="wl-change">—</div></div>
+        <div class="wl-card"><div class="lbl">Coins held</div><div class="val" id="wl-count">—</div></div>
+        <div class="wl-card"><div class="lbl">NFTs in wallet</div><div class="val" id="wl-nfts">—</div></div>
+      </div>
+      <table class="mk-table">
+        <thead><tr>
+          <th>#</th><th>Coin</th><th>Amount held</th><th>Price</th><th>24h</th><th>Value</th><th>Share of portfolio</th>
+        </tr></thead>
+        <tbody id="wl-body"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div id="view-history" aria-label="History">
+      <div class="mk-head">
+        <div>
+          <h2>History</h2>
+          <div class="mk-sub" id="hs-status">Your trades and wallet activity</div>
+        </div>
+      </div>
+      <div class="hs-tabs">
+        <button class="hs-tab on" id="hs-tab-trades" onclick="hsTab('trades')">Trade log</button>
+        <button class="hs-tab" id="hs-tab-chain" onclick="hsTab('chain')">Wallet activity</button>
+      </div>
+      <div id="hs-trades">
+        <div class="wl-cards">
+          <div class="wl-card"><div class="lbl">Total invested</div><div class="val" id="hs-invested">—</div></div>
+          <div class="wl-card"><div class="lbl">Realised profit/loss</div><div class="val" id="hs-realised">—</div></div>
+          <div class="wl-card"><div class="lbl">Unrealised profit/loss</div><div class="val" id="hs-unrealised">—</div></div>
+        </div>
+        <div class="hs-form">
+          <input type="date" id="hs-date">
+          <select id="hs-side"><option value="buy">Buy</option><option value="sell">Sell</option></select>
+          <input id="hs-sym" placeholder="Coin (e.g. SOL)">
+          <input id="hs-qty" type="number" step="any" placeholder="Amount">
+          <input id="hs-price" type="number" step="any" placeholder="Price each (US$)">
+          <input id="hs-fee" type="number" step="any" placeholder="Fee (US$)">
+          <label class="mk-sub"><input type="checkbox" id="hs-upd" checked style="width:auto"> Update holdings</label>
+          <button class="wl-btn" onclick="addTrade()">Add trade</button>
+          <button class="wl-btn" onclick="importCoinSpot()" style="margin-left:auto">Import from CoinSpot</button>
+        </div>
+        <table class="mk-table">
+          <thead><tr><th>Date</th><th>Trade</th><th>Amount</th><th>Price each</th><th>Total</th><th>Now worth</th><th>Profit/loss</th><th></th></tr></thead>
+          <tbody id="hs-body"></tbody>
+        </table>
+      </div>
+      <div id="hs-chain" style="display:none">
+        <table class="mk-table">
+          <thead><tr><th>Date</th><th>Direction</th><th>Asset</th><th>Amount</th><th>Other address</th><th>Transaction</th></tr></thead>
+          <tbody id="hs-chain-body"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="view-settings" aria-label="Settings">
+      <div class="mk-head"><div><h2>Settings</h2><div class="mk-sub">Saved in this browser</div></div></div>
+
+      <div class="st-sec"><h3>Appearance</h3>
+        <div class="st-row">Theme <span class="st-seg" id="st-theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="system">System</button></span></div>
+        <div class="st-row">Show first <span class="st-seg" id="st-currency"><button data-v="USD">US$</button><button data-v="AUD">A$</button></span></div>
+      </div>
+
+      <div class="st-sec"><h3>Coins in the ticker</h3>
+        <div class="mk-sub">Your held coins are always priced, even if not shown here.</div>
+        <div class="st-row" id="st-coins"></div>
+        <div class="st-row"><input type="text" id="st-addcoin" placeholder="Add coin, e.g. XRP" style="width:160px"><button class="wl-btn" onclick="stAddCoin()">Add</button></div>
+      </div>
+
+      <div class="st-sec"><h3>Wallet</h3>
+        <div class="mk-sub">The Ethereum address used for NFTs and wallet activity. Leave blank to use the default.</div>
+        <div class="st-row"><input type="text" id="st-wallet" placeholder="0x…" style="width:420px;max-width:100%"><button class="wl-btn" onclick="stSaveWallet()">Save</button></div>
+      </div>
+
+      <div class="st-sec"><h3>Refresh speed</h3>
+        <div class="mk-sub">Slower refreshes use fewer CoinMarketCap credits.</div>
+        <div class="st-row">Prices every <select id="st-price"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></div>
+        <div class="st-row">Markets list every <select id="st-markets"><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option></select></div>
+      </div>
+
+      <div class="st-sec"><h3>Connections</h3>
+        <div class="mk-sub">Keys are kept on the server and never shown here.</div>
+        <div id="st-conn" class="st-row" style="flex-direction:column;align-items:flex-start"></div>
+        <div class="st-row"><button class="wl-btn" onclick="stLoadStatus(true)">Test connections</button></div>
+      </div>
+
+      <div class="st-sec"><h3>Your data</h3>
+        <div class="mk-sub">Holdings, trades, alerts and settings live only in this browser. Back them up before switching computers.</div>
+        <div class="st-row">
+          <button class="wl-btn" onclick="stBackup()">Download backup</button>
+          <button class="wl-btn" onclick="document.getElementById('st-restore').click()">Restore from backup</button>
+          <input type="file" id="st-restore" accept=".json" style="display:none" onchange="stRestore(this.files[0])">
+          <button class="wl-btn danger" onclick="stClear()">Clear all data</button>
+        </div>
+      </div>
+
+      <div class="st-sec"><h3>Account</h3>
+        <div class="st-row" id="st-account"></div>
+      </div>
+    </div>
+
     <div id="view-breakout" aria-label="Breakout Score">
       <iframe id="breakout-frame" src="/breakout/" title="Breakout Score" loading="lazy"></iframe>
     </div>
@@ -1850,11 +2037,12 @@
   // ─── Live Price Fetching ─────────────────────────────────────────────────
   async function fetchLivePrices() {
     try {
-      const res  = await fetch('/api/prices?symbols=BTC,ETH,SOL,MATIC,AVAX,LINK,DOT,ADA,DOGE');
+      const res  = await fetch('/api/prices?symbols=' + [...new Set(['BTC','ETH','SOL', ...SETTINGS.coins, ...Object.keys(HOLDINGS).filter(k => HOLDINGS[k] > 0)])].join(','));
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
 
-      liveData = json.data;
+      // drop coins the price source returned without a price (e.g. renamed or delisted)
+      liveData = Object.fromEntries(Object.entries(json.data || {}).filter(([, c]) => c && typeof c.price === 'number' && isFinite(c.price)));
 
       console.log('[CIPHER] Raw data keys:', Object.keys(liveData));
       console.log('[CIPHER] BTC sample:', JSON.stringify(liveData['BTC']));
@@ -1876,7 +2064,7 @@
   }
 
   function updateTickerBar(data) {
-    const items = Object.values(data).filter(c => c && c.price).map(c => {
+    const items = Object.values(data).filter(c => c && c.price && SETTINGS.coins.includes(c.symbol)).map(c => {
       const chg   = c.change_24h ?? 0;
       const color = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
       const sign  = chg >= 0 ? '+' : '';
@@ -1897,6 +2085,26 @@
     if (inner) inner.innerHTML = html;
   }
 
+  let AUD_RATE = null;
+  async function fetchFx() {
+    try { const j = await (await fetch('/api/fx')).json(); if (j.ok) { AUD_RATE = j.AUD; if (liveData && Object.keys(liveData).length) updateStatCards(liveData); } } catch (e) { console.warn('[CIPHER] FX fetch failed', e.message); }
+  }
+  const audLine = (usd, size) => AUD_RATE == null ? '' : '<div style="font-size:' + size + 'px;color:var(--muted);font-weight:500;margin-top:2px">A$' + (usd * AUD_RATE >= 1000 ? Math.round(usd * AUD_RATE).toLocaleString() : (usd * AUD_RATE).toFixed(2)) + '</div>';
+  // ─── Settings (saved in this browser) ───────────────────────────────────
+  const SETTINGS_DEFAULT = { currency: 'USD', coins: ['BTC','ETH','SOL','POL','AVAX','LINK','DOT','ADA','DOGE'], wallet: '', priceSec: 60, marketsSec: 120, theme: 'dark' };
+  let SETTINGS = (() => { try { return { ...SETTINGS_DEFAULT, ...JSON.parse(localStorage.getItem('cipher_settings') || '{}') }; } catch { return { ...SETTINGS_DEFAULT }; } })();
+  const walletQs = () => /^0x[0-9a-fA-F]{40}$/.test(SETTINGS.wallet || '') ? '?address=' + SETTINGS.wallet : '';
+  const audFirst = () => SETTINGS.currency === 'AUD' && AUD_RATE;
+  function dual(usd, usdStr, size) {
+    if (audFirst()) return 'A' + mkUsd(usd * AUD_RATE) + '<div style="font-size:' + size + 'px;color:var(--muted);font-weight:500;margin-top:2px">US' + usdStr + '</div>';
+    return 'US' + usdStr + audLine(usd, size);
+  }
+  function cell(usd) {
+    if (usd == null) return '—';
+    if (audFirst()) return 'A' + mkUsd(usd * AUD_RATE) + '<div class="mk-aud">US' + mkUsd(usd) + '</div>';
+    return mkUsd(usd) + (AUD_RATE ? '<div class="mk-aud">A' + mkUsd(usd * AUD_RATE) + '</div>' : '');
+  }
+  const fmtPx = p => p == null || !isFinite(p) ? '—' : p >= 100 ? '$' + Math.round(p).toLocaleString() : p >= 1 ? '$' + p.toFixed(2) : '$' + p.toFixed(4);
   function updateStatCards(data) {
     // Calculate total portfolio value from real holdings
     let totalValue = 0;
@@ -1910,7 +2118,7 @@
       const display = totalValue >= 1000
         ? '$' + (totalValue / 1000).toFixed(1) + 'k'
         : '$' + totalValue.toFixed(2);
-      portfolioEl.textContent = display;
+      portfolioEl.innerHTML = dual(totalValue, display, 13);
     }
 
     // Update donut cards (BTC, ETH, SOL, NFT)
@@ -1926,7 +2134,9 @@
       const valStr = val >= 1000 ? '$' + Math.round(val).toLocaleString() : '$' + val.toFixed(2);
       const amountEl = card.querySelector('.donut-amount');
       const badgeEl  = card.querySelector('.trend-badge');
-      if (amountEl) amountEl.textContent = valStr;
+      if (amountEl) { amountEl.innerHTML = dual(val, valStr, 12); amountEl.title = 'Value of your ' + sym; }
+      const subEl = card.querySelector('.donut-subtitle');
+      if (subEl) subEl.textContent = qty + ' ' + sym + ' held · ' + fmtPx(info.price) + ' each';
       if (badgeEl) {
         badgeEl.textContent = (chg >= 0 ? '↑ ' : '↓ ') + Math.abs(chg).toFixed(2) + '%';
         badgeEl.className   = 'trend-badge ' + (chg >= 0 ? 'trend-up' : 'trend-down');
@@ -1947,7 +2157,9 @@
       const valStr = val >= 1000 ? '$' + (val / 1000).toFixed(1) + 'k' : '$' + val.toFixed(2);
       const amountEl = item.querySelector('.rev-amount');
       const changeEl = item.querySelector('.rev-change');
-      if (amountEl) amountEl.textContent = valStr;
+      if (amountEl) amountEl.innerHTML = dual(val, valStr, 10);
+      const revSub = item.querySelector('.rev-sub');
+      if (revSub) revSub.textContent = qty + ' ' + sym + ' · ' + fmtPx(info.price) + ' each';
       if (changeEl) { changeEl.textContent = sign + chg.toFixed(2) + '%'; changeEl.style.color = color; }
     });
   }
@@ -2264,6 +2476,7 @@
   function updateHolding(sym, val) {
     HOLDINGS[sym] = parseFloat(val) || 0;
     saveHoldings(HOLDINGS);
+    if (typeof renderWallet === 'function') renderWallet();
     refreshTotalPreview();
     if (Object.keys(liveData).length > 0) updateStatCards(liveData);
     showToast('success', 'Holdings Saved', sym + ' updated to ' + (HOLDINGS[sym] || 0));
@@ -2378,7 +2591,7 @@
     const statTotal = document.getElementById('nv-total');
     const statValue = document.getElementById('nv-value');
     try {
-      const res  = await fetch('/api/nfts');
+      const res  = await fetch('/api/nfts' + walletQs());
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
       const nfts = json.data || [];
@@ -3006,7 +3219,7 @@
   // ─── Overview NFT Strip ─────────────────────────────────────────────────
   async function loadOverviewNFTs() {
     try {
-      const res  = await fetch('/api/nfts');
+      const res  = await fetch('/api/nfts' + walletQs());
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
 
@@ -3056,10 +3269,317 @@
   }
 
 
-  // ─── View switching (Overview / Breakout) ────────────────────────────────
+  // ─── Markets view (top 100 from CoinMarketCap) ───────────────────────────
+  let MK_DATA = [], MK_SORT = { key: 'rank', dir: 1 }, MK_TIMER = null, MK_AT = 0;
+  const mkUsd = v => v == null ? '—' : v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : v >= 100 ? '$' + Math.round(v).toLocaleString() : v >= 1 ? '$' + v.toFixed(2) : '$' + v.toPrecision(3);
+  const mkPct = v => v == null ? '—' : '<span class="' + (v >= 0 ? 'mk-up' : 'mk-down') + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</span>';
+  async function loadMarkets() {
+    try {
+      const j = await (await fetch('/api/listings?limit=100')).json();
+      if (!j.ok) throw new Error(j.error || 'Failed');
+      MK_DATA = j.data; MK_AT = Date.now();
+      document.getElementById('mk-status').textContent = 'Top 100 coins by market cap · prices in US$ with A$ below · updated ' + new Date().toLocaleTimeString();
+      renderMarkets();
+    } catch (e) {
+      document.getElementById('mk-status').textContent = 'Could not load markets: ' + e.message;
+    }
+  }
+  function sortMarkets(key) {
+    MK_SORT = { key, dir: MK_SORT.key === key ? -MK_SORT.dir : (key === 'rank' || key === 'name' ? 1 : -1) };
+    renderMarkets();
+  }
+  function renderMarkets() {
+    const q = (document.getElementById('mk-search').value || '').trim().toLowerCase();
+    const rows = MK_DATA.filter(c => !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q))
+      .sort((a, b) => { const x = a[MK_SORT.key], y = b[MK_SORT.key]; return (typeof x === 'string' ? x.localeCompare(y) : (x ?? -Infinity) - (y ?? -Infinity)) * MK_SORT.dir; });
+    document.getElementById('mk-body').innerHTML = rows.map(c => '<tr>' +
+      '<td>' + c.rank + '</td>' +
+      '<td>' + c.name + '<span class="mk-sym">' + c.symbol + '</span></td>' +
+      '<td>' + cell(c.price) + '</td>' +
+      '<td>' + mkPct(c.change_1h) + '</td><td>' + mkPct(c.change_24h) + '</td><td>' + mkPct(c.change_7d) + '</td>' +
+      '<td>' + mkUsd(c.volume_24h) + '</td><td>' + mkUsd(c.market_cap) + '</td></tr>').join('') ||
+      '<tr><td colspan="8" style="text-align:center;color:var(--muted)">No matches</td></tr>';
+  }
+
+  // ─── Wallet view (holdings at live prices) ───────────────────────────────
+  let WL_NFTS = null, WL_TIMER = null;
+  function renderWallet() {
+    if (!document.getElementById('wl-body')) return;
+    const data = liveData || {};
+    const rows = Object.entries(HOLDINGS).filter(([, q]) => q > 0).map(([sym, qty]) => {
+      const c = data[sym] || {}; const price = c.price ?? PRICES[sym] ?? 0;
+      return { sym, name: c.name || sym, qty, price, chg: c.change_24h, value: price * qty };
+    }).sort((a, b) => b.value - a.value);
+    const total = rows.reduce((t, r) => t + r.value, 0);
+    const prev = rows.reduce((t, r) => t + (r.chg != null ? r.value / (1 + r.chg / 100) : r.value), 0);
+    const chgUsd = total - prev, chgPct = prev ? chgUsd / prev * 100 : 0;
+    document.getElementById('wl-total').innerHTML = dual(total, mkUsd(total), 13);
+    document.getElementById('wl-change').innerHTML = rows.length ? '<span class="' + (chgUsd >= 0 ? 'mk-up' : 'mk-down') + '">' + (chgUsd >= 0 ? '+' : '-') + mkUsd(Math.abs(chgUsd)) + '</span><div class="mk-aud">' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</div>' : '—';
+    document.getElementById('wl-count').textContent = rows.length;
+    document.getElementById('wl-nfts').textContent = WL_NFTS == null ? '—' : WL_NFTS;
+    document.getElementById('wl-body').innerHTML = rows.map((r, i) => {
+      const share = total ? r.value / total * 100 : 0;
+      return '<tr><td>' + (i + 1) + '</td><td>' + r.name + '<span class="mk-sym">' + r.sym + '</span></td>' +
+        '<td>' + r.qty.toLocaleString(undefined, { maximumFractionDigits: 8 }) + ' ' + r.sym + '</td>' +
+        '<td>' + cell(r.price) + '</td>' +
+        '<td>' + mkPct(r.chg) + '</td>' +
+        '<td>' + cell(r.value) + '</td>' +
+        '<td>' + share.toFixed(1) + '%<span class="wl-bar"><span style="width:' + share.toFixed(1) + '%"></span></span></td></tr>';
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">No holdings yet. Click Edit holdings to add what you own.</td></tr>';
+    document.getElementById('wl-status').textContent = 'Your coin holdings at live prices · updated ' + new Date().toLocaleTimeString();
+  }
+  async function loadWalletNfts() {
+    try { const j = await (await fetch('/api/nfts' + walletQs())).json(); WL_NFTS = j.ok ? (j.data || j.nfts || []).length : null; } catch { WL_NFTS = null; }
+    renderWallet();
+  }
+
+  // ─── History view (manual trade log + on-chain wallet activity) ─────────
+  let TRADES = (() => { try { return JSON.parse(localStorage.getItem('cipher_trades') || '[]'); } catch { return []; } })();
+  let HS_CHAIN = null;
+  const hsEsc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+  const hsMoney = v => (v < 0 ? '-' : '') + mkUsd(Math.abs(v));
+  const hsPl = v => '<span class="' + (v >= 0 ? 'mk-up' : 'mk-down') + '">' + (v >= 0 ? '+' : '-') + mkUsd(Math.abs(v)) + '</span>';
+  function hsTab(t) {
+    document.getElementById('hs-trades').style.display = t === 'trades' ? '' : 'none';
+    document.getElementById('hs-chain').style.display = t === 'chain' ? '' : 'none';
+    document.getElementById('hs-tab-trades').classList.toggle('on', t === 'trades');
+    document.getElementById('hs-tab-chain').classList.toggle('on', t === 'chain');
+    if (t === 'chain' && HS_CHAIN == null) loadChain();
+  }
+  function addTrade() {
+    const sym = document.getElementById('hs-sym').value.trim().toUpperCase();
+    const qty = parseFloat(document.getElementById('hs-qty').value);
+    const price = parseFloat(document.getElementById('hs-price').value);
+    const fee = parseFloat(document.getElementById('hs-fee').value) || 0;
+    const side = document.getElementById('hs-side').value;
+    const date = document.getElementById('hs-date').value || new Date().toISOString().slice(0, 10);
+    if (!sym || !(qty > 0) || !(price >= 0)) { showToast('error', 'Missing details', 'Enter a coin, an amount and a price.'); return; }
+    TRADES.push({ id: Date.now(), date, side, sym, qty, price, fee });
+    localStorage.setItem('cipher_trades', JSON.stringify(TRADES));
+    if (document.getElementById('hs-upd').checked) {
+      HOLDINGS[sym] = Math.max(0, (HOLDINGS[sym] || 0) + (side === 'buy' ? qty : -qty));
+      saveHoldings(HOLDINGS);
+      if (liveData && Object.keys(liveData).length) updateStatCards(liveData);
+    }
+    ['hs-sym', 'hs-qty', 'hs-price', 'hs-fee'].forEach(id => document.getElementById(id).value = '');
+    showToast('success', 'Trade added', (side === 'buy' ? 'Bought ' : 'Sold ') + qty + ' ' + sym);
+    renderHistory();
+  }
+  async function importCoinSpot() {
+    try {
+      showToast('info', 'CoinSpot', 'Fetching your trades…');
+      const j = await (await fetch('/api/coinspot/trades')).json();
+      if (!j.ok) throw new Error(j.error || 'Failed');
+      if (!AUD_RATE) await fetchFx();
+      const have = new Set(TRADES.map(t => t.csid).filter(Boolean));
+      let added = 0;
+      j.data.forEach(o => {
+        if (have.has(o.id) || !(o.qty > 0)) return;
+        const aud = o.audtotal || o.total; const toUsd = AUD_RATE ? 1 / AUD_RATE : 1;
+        TRADES.push({ id: Date.now() + added, csid: o.id, source: 'CoinSpot', date: o.created && !isNaN(new Date(o.created)) ? new Date(o.created).toISOString().slice(0, 10) : 'unknown', side: o.side, sym: o.sym,
+          qty: o.qty, price: (aud - (o.side === 'buy' ? o.fee : -o.fee)) / o.qty * toUsd, fee: o.fee * toUsd, aud: aud });
+        added++;
+      });
+      localStorage.setItem('cipher_trades', JSON.stringify(TRADES));
+      renderHistory();
+      showToast('success', 'CoinSpot', added ? 'Imported ' + added + ' new trade' + (added > 1 ? 's' : '') + '. Holdings were not changed.' : 'No new trades to import.');
+    } catch (e) { showToast('error', 'CoinSpot import failed', e.message); }
+  }
+  function delTrade(id) {
+    if (!confirm('Delete this trade? (Holdings are not changed.)')) return;
+    TRADES = TRADES.filter(t => t.id !== id);
+    localStorage.setItem('cipher_trades', JSON.stringify(TRADES));
+    renderHistory();
+  }
+  function renderHistory() {
+    const px = s => (liveData && liveData[s] && liveData[s].price) || PRICES[s] || null;
+    // average-cost method, oldest first
+    const book = {}; let invested = 0, realised = 0; const pl = {};
+    [...TRADES].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id).forEach(t => {
+      const b = book[t.sym] || (book[t.sym] = { qty: 0, cost: 0 });
+      if (t.side === 'buy') { b.qty += t.qty; b.cost += t.qty * t.price + t.fee; invested += t.qty * t.price + t.fee; }
+      else { const avg = b.qty ? b.cost / b.qty : 0; const q = Math.min(t.qty, b.qty); const r = t.qty * t.price - t.fee - q * avg; realised += r; pl[t.id] = r; b.qty -= q; b.cost -= q * avg; }
+    });
+    let unreal = 0, haveAll = true;
+    for (const [s, b] of Object.entries(book)) { if (b.qty > 0) { const p = px(s); if (p) unreal += b.qty * p - b.cost; else haveAll = false; } }
+    document.getElementById('hs-invested').innerHTML = dual(invested, mkUsd(invested), 13);
+    document.getElementById('hs-realised').innerHTML = hsPl(realised);
+    document.getElementById('hs-unrealised').innerHTML = hsPl(unreal) + (haveAll ? '' : '<div class="mk-aud">some coins have no live price</div>');
+    const rows = [...TRADES].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+    document.getElementById('hs-body').innerHTML = rows.map(t => {
+      const total = t.qty * t.price + (t.side === 'buy' ? t.fee : -t.fee); const p = px(t.sym);
+      const now = p ? t.qty * p : null;
+      const res = t.side === 'sell' ? (pl[t.id] != null ? hsPl(pl[t.id]) + '<div class="mk-aud">realised</div>' : '—') : (now != null ? hsPl(now - total) : '—');
+      return '<tr><td>' + hsEsc(t.date) + '</td><td><span class="' + (t.side === 'buy' ? 'mk-up' : 'mk-down') + '">' + (t.side === 'buy' ? 'Buy' : 'Sell') + '</span> ' + hsEsc(t.sym) + (t.source ? '<div class="mk-aud">' + hsEsc(t.source) + '</div>' : '') + '</td>' +
+        '<td>' + t.qty.toLocaleString(undefined, { maximumFractionDigits: 8 }) + '</td><td>' + mkUsd(t.price) + '</td>' +
+        '<td>' + cell(total) + '</td>' +
+        '<td>' + (now != null ? mkUsd(now) : '—') + '</td><td>' + res + '</td>' +
+        '<td><button class="hs-del" title="Delete" onclick="delTrade(' + t.id + ')">✕</button></td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted)">No trades yet. Add your first one above.</td></tr>';
+  }
+  async function loadChain() {
+    const body = document.getElementById('hs-chain-body');
+    try {
+      const j = await (await fetch('/api/wallet/history' + walletQs())).json();
+      if (!j.ok) throw new Error(j.error || 'Failed');
+      HS_CHAIN = j.data;
+      const sh = a => a ? a.slice(0, 6) + '…' + a.slice(-4) : '—';
+      body.innerHTML = HS_CHAIN.map(t => '<tr><td>' + (t.time ? new Date(t.time).toLocaleString() : '—') + '</td>' +
+        '<td><span class="' + (t.dir === 'in' ? 'mk-up' : 'mk-down') + '">' + (t.dir === 'in' ? 'Received' : 'Sent') + '</span></td>' +
+        '<td>' + hsEsc(t.asset) + (t.tokenId ? ' <span class="mk-sym">#' + hsEsc(parseInt(t.tokenId, 16) || t.tokenId) + '</span>' : '') + '</td>' +
+        '<td>' + (t.value != null ? Number(t.value).toLocaleString(undefined, { maximumFractionDigits: 6 }) : '1') + '</td>' +
+        '<td>' + sh(t.counterparty) + '</td>' +
+        '<td><a href="https://etherscan.io/tx/' + hsEsc(t.hash) + '" target="_blank" rel="noopener" style="color:var(--cyan)">View</a></td></tr>').join('') ||
+        '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No activity found for this wallet.</td></tr>';
+      document.getElementById('hs-status').textContent = 'Wallet ' + sh(j.wallet) + ' on Ethereum · latest ' + HS_CHAIN.length + ' transfers';
+    } catch (e) {
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--pink)">Could not load wallet activity: ' + hsEsc(e.message) + '</td></tr>';
+    }
+  }
+
+  // ─── Settings view ───────────────────────────────────────────────────────
+  function saveSettings() { localStorage.setItem('cipher_settings', JSON.stringify(SETTINGS)); }
+  function applyTheme() {
+    const light = SETTINGS.theme === 'light' || (SETTINGS.theme === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches);
+    document.body.classList.toggle('light', light);
+  }
+  function stSeg(id, key, after) {
+    const el = document.getElementById(id);
+    el.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('on', b.dataset.v === SETTINGS[key]);
+      b.onclick = () => { SETTINGS[key] = b.dataset.v; saveSettings(); stSeg(id, key, after); after && after(); };
+    });
+  }
+  function rerenderAll() {
+    if (liveData && Object.keys(liveData).length) { updateStatCards(liveData); updateTickerBar(liveData); }
+    if (MK_DATA.length) renderMarkets();
+    renderWallet(); renderHistory();
+  }
+  function stRenderCoins() {
+    const all = [...new Set([...SETTINGS_DEFAULT.coins, ...SETTINGS.coins])];
+    document.getElementById('st-coins').innerHTML = all.map(c => '<label class="st-chip"><input type="checkbox" ' + (SETTINGS.coins.includes(c) ? 'checked' : '') + ' onchange="stToggleCoin(\'' + c + '\', this.checked)">' + c + '</label>').join('');
+  }
+  function stToggleCoin(c, on) {
+    SETTINGS.coins = on ? [...new Set([...SETTINGS.coins, c])] : SETTINGS.coins.filter(x => x !== c);
+    saveSettings(); fetchLivePrices();
+  }
+  function stAddCoin() {
+    const el = document.getElementById('st-addcoin'); const c = el.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!c) return; el.value = '';
+    SETTINGS.coins = [...new Set([...SETTINGS.coins, c])]; saveSettings(); stRenderCoins(); fetchLivePrices();
+    showToast('success', 'Ticker', c + ' added');
+  }
+  function stSaveWallet() {
+    const v = document.getElementById('st-wallet').value.trim();
+    if (v && !/^0x[0-9a-fA-F]{40}$/.test(v)) { showToast('error', 'Wallet', 'That is not a valid Ethereum address.'); return; }
+    SETTINGS.wallet = v; saveSettings(); WL_NFTS = null; HS_CHAIN = null;
+    if (typeof loadOverviewNFTs === 'function') loadOverviewNFTs();
+    showToast('success', 'Wallet', v ? 'Wallet address saved' : 'Using the default wallet');
+  }
+  async function stLoadStatus(test) {
+    const box = document.getElementById('st-conn');
+    box.innerHTML = '<span class="mk-sub">' + (test ? 'Testing…' : 'Loading…') + '</span>';
+    try {
+      const j = await (await fetch('/api/status' + (test ? '?test=1' : ''))).json();
+      const names = { coinmarketcap: 'CoinMarketCap (prices)', opensea: 'OpenSea (NFTs)', alchemy: 'Alchemy (wallet)', coinspot: 'CoinSpot (trades)' };
+      box.innerHTML = Object.entries(j.services).map(([k, v]) => {
+        const st = !v.set ? ['var(--muted)', 'Not set up'] : v.ok === true ? ['var(--cyan)', 'Working'] : v.ok === false ? ['var(--pink)', 'Not working'] : ['var(--cyan)', 'Key set'];
+        return '<div><span class="st-dot" style="background:' + st[0] + '"></span>' + names[k] + ' · <span style="color:' + st[0] + '">' + st[1] + '</span></div>';
+      }).join('');
+      if (!SETTINGS.wallet) document.getElementById('st-wallet').placeholder = j.wallet + ' (default)';
+      document.getElementById('st-account').innerHTML = j.auth
+        ? 'Signed in as <b style="margin:0 4px">' + hsEsc(j.user) + '</b><button class="wl-btn danger" onclick="location.href=\'/logout\'">Log out</button>'
+        : '<span class="mk-sub">Sign-in is off on this computer (it turns on automatically when hosted).</span>';
+    } catch (e) { box.innerHTML = '<span style="color:var(--pink)">Could not check connections: ' + hsEsc(e.message) + '</span>'; }
+  }
+  function stBackup() {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('cipher_')) data[k] = localStorage.getItem(k); }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: 'CIPHER', saved: new Date().toISOString(), data }, null, 2)], { type: 'application/json' }));
+    a.download = 'cipher-backup-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+  }
+  async function stRestore(file) {
+    if (!file) return;
+    try {
+      const j = JSON.parse(await file.text());
+      if (j.app !== 'CIPHER' || !j.data) throw new Error('Not a CIPHER backup file');
+      if (!confirm('Replace your current holdings, trades and settings with this backup?')) return;
+      Object.keys(localStorage).filter(k => k.startsWith('cipher_')).forEach(k => localStorage.removeItem(k));
+      Object.entries(j.data).forEach(([k, v]) => { if (k.startsWith('cipher_')) localStorage.setItem(k, v); });
+      location.reload();
+    } catch (e) { showToast('error', 'Restore failed', e.message); }
+  }
+  function stClear() {
+    if (!confirm('Delete all holdings, trades, alerts and settings saved in this browser? Download a backup first if you might want them back.')) return;
+    Object.keys(localStorage).filter(k => k.startsWith('cipher_')).forEach(k => localStorage.removeItem(k));
+    location.reload();
+  }
+  function renderSettings() {
+    stSeg('st-theme', 'theme', applyTheme);
+    stSeg('st-currency', 'currency', rerenderAll);
+    stRenderCoins();
+    document.getElementById('st-wallet').value = SETTINGS.wallet || '';
+    const sp = document.getElementById('st-price'), sm = document.getElementById('st-markets');
+    sp.value = String(SETTINGS.priceSec); sm.value = String(SETTINGS.marketsSec);
+    sp.onchange = () => { SETTINGS.priceSec = +sp.value; saveSettings(); clearInterval(PRICE_TIMER); PRICE_TIMER = setInterval(fetchLivePrices, SETTINGS.priceSec * 1000); };
+    sm.onchange = () => { SETTINGS.marketsSec = +sm.value; saveSettings(); };
+    stLoadStatus(false);
+  }
+
+  // ─── View switching (Overview / Markets / Wallet / History / Settings / Breakout) ──────────────────────
   function showView(name) {
     const overview = document.getElementById('view-overview');
     const breakout = document.getElementById('view-breakout');
+    const markets = document.getElementById('view-markets');
+    if (markets) markets.classList.toggle('active', name === 'markets');
+    if (MK_TIMER) { clearInterval(MK_TIMER); MK_TIMER = null; }
+    const settings = document.getElementById('view-settings');
+    if (settings) settings.classList.toggle('active', name === 'settings');
+    if (name === 'settings') {
+      overview.classList.add('hidden');
+      breakout.classList.remove('active');
+      ['view-history', 'view-wallet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
+      if (WL_TIMER) { clearInterval(WL_TIMER); WL_TIMER = null; }
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const ns = document.getElementById('nav-settings'); if (ns) ns.classList.add('active');
+      renderSettings();
+      return;
+    }
+    const history = document.getElementById('view-history');
+    if (history) history.classList.toggle('active', name === 'history');
+    if (name === 'history') {
+      overview.classList.add('hidden');
+      breakout.classList.remove('active');
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const nh = document.getElementById('nav-history'); if (nh) nh.classList.add('active');
+      const d = document.getElementById('hs-date'); if (!d.value) d.value = new Date().toISOString().slice(0, 10);
+      renderHistory();
+      const vw = document.getElementById('view-wallet'); if (vw) vw.classList.remove('active');
+      if (WL_TIMER) { clearInterval(WL_TIMER); WL_TIMER = null; }
+      return;
+    }
+    const wallet = document.getElementById('view-wallet');
+    if (wallet) wallet.classList.toggle('active', name === 'wallet');
+    if (WL_TIMER) { clearInterval(WL_TIMER); WL_TIMER = null; }
+    if (name === 'wallet') {
+      overview.classList.add('hidden');
+      breakout.classList.remove('active');
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const nw = document.getElementById('nav-wallet'); if (nw) nw.classList.add('active');
+      renderWallet(); if (WL_NFTS == null) loadWalletNfts();
+      WL_TIMER = setInterval(renderWallet, 15000);
+      return;
+    }
+    if (name === 'markets') {
+      overview.classList.add('hidden');
+      breakout.classList.remove('active');
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const nm = document.getElementById('nav-markets'); if (nm) nm.classList.add('active');
+      if (Date.now() - MK_AT > SETTINGS.marketsSec * 1000) loadMarkets(); else renderMarkets();
+      MK_TIMER = setInterval(loadMarkets, SETTINGS.marketsSec * 1000);
+      return;
+    }
     const navOverview = document.getElementById('nav-overview');
     const navBreakout = document.getElementById('nav-breakout');
     if (!overview || !breakout) return;
@@ -3086,7 +3606,11 @@
   updateBadges();
   updateWatchBadge();
   fetchLivePrices();
-  setInterval(fetchLivePrices, 60000);
+  let PRICE_TIMER = setInterval(fetchLivePrices, SETTINGS.priceSec * 1000);
+  applyTheme();
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+  fetchFx();
+  setInterval(fetchFx, 3600000);
   loadOverviewNFTs();
 </script>
 </body>

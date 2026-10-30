@@ -35,6 +35,13 @@ if (process.env.NODE_ENV === 'production' && !DASH_PASSWORD) {
   console.error('DASH_PASSWORD is not set. Refusing to start a public dashboard without a sign-in.');
   process.exit(1);
 }
+// Sign out: always answer 401 so the browser forgets the saved sign-in
+app.get('/logout', (req, res) => {
+  if (!DASH_PASSWORD) return res.redirect('/');
+  res.set('WWW-Authenticate', 'Basic realm="CIPHER", charset="UTF-8"');
+  res.status(401).send('<body style="background:#090b10;color:#e8eaf0;font-family:monospace;padding:40px">Signed out of CIPHER. <a href="/" style="color:#00f5c4">Sign in again</a></body>');
+});
+
 if (DASH_PASSWORD) {
   const crypto = require('crypto');
   const safeEq = (a, b) => {
@@ -226,6 +233,9 @@ app.get('/api/listings', async (req, res) => {
 });
 
 // ── Helper: generic HTTPS fetch ──────────────────────────────────────────
+// Wallet address: settings page may override it with ?address=0x...
+const pickAddr = (req) => /^0x[0-9a-fA-F]{40}$/.test(req.query.address || '') ? req.query.address : WALLET_ADDRESS;
+
 function httpsFetch(hostname, path, headers = {}) {
   return new Promise((resolve, reject) => {
     const options = { hostname, path, method: 'GET', headers: { 'Accept': 'application/json', ...headers } };
@@ -253,7 +263,7 @@ app.get('/api/nfts', async (req, res) => {
       return res.json({ ok: false, error: 'Wallet address not set in server.js' });
     }
 
-    const path = `/nft/v3/${ALCHEMY_API_KEY}/getNFTsForOwner?owner=${WALLET_ADDRESS}&withMetadata=true&pageSize=100`;
+    const path = `/nft/v3/${ALCHEMY_API_KEY}/getNFTsForOwner?owner=${pickAddr(req)}&withMetadata=true&pageSize=100`;
     const data = await httpsFetch('eth-mainnet.g.alchemy.com', path);
 
     const nfts = (data.ownedNfts || []).map(nft => ({
@@ -523,6 +533,88 @@ app.get('/api/nft/news', async (req, res) => {
 });
 
 // ── Catch-all: serve dashboard (skip API + breakout assets) ───────────────
+// -- Route: USD to AUD exchange rate (free, no key; cached 1 hour) --
+let fxCache = { rate: null, at: 0 };
+app.get('/api/fx', async (req, res) => {
+  try {
+    if (!fxCache.rate || Date.now() - fxCache.at > 3600000) {
+      const r = await fetch('https://open.er-api.com/v6/latest/USD');
+      const j = await r.json();
+      if (j.result !== 'success' || !j.rates || !j.rates.AUD) throw new Error('FX source unavailable');
+      fxCache = { rate: j.rates.AUD, at: Date.now() };
+    }
+    res.json({ ok: true, base: 'USD', AUD: fxCache.rate, updated: new Date(fxCache.at).toISOString() });
+  } catch (err) {
+    if (fxCache.rate) return res.json({ ok: true, base: 'USD', AUD: fxCache.rate, stale: true });
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// -- Route: wallet activity (Alchemy asset transfers, in + out) --
+app.get('/api/wallet/history', async (req, res) => {
+  try {
+    if (ALCHEMY_API_KEY === 'PASTE_YOUR_ALCHEMY_KEY_HERE') return res.json({ ok: false, error: 'Alchemy API key not set' });
+    const url = 'https://eth-mainnet.g.alchemy.com/v2/' + ALCHEMY_API_KEY;
+    const call = async (dir) => {
+      const params = { fromBlock: '0x0', category: ['external', 'erc20', 'erc721', 'erc1155'], withMetadata: true, excludeZeroValue: true, maxCount: '0x64', order: 'desc' };
+      params[dir] = pickAddr(req);
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'alchemy_getAssetTransfers', params: [params] }) });
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message);
+      return (j.result.transfers || []).map(t => ({
+        hash: t.hash, dir: dir === 'toAddress' ? 'in' : 'out', category: t.category,
+        asset: t.asset || (t.category === 'erc721' || t.category === 'erc1155' ? 'NFT' : '?'),
+        value: t.value, tokenId: t.erc721TokenId || (t.erc1155Metadata && t.erc1155Metadata[0] && t.erc1155Metadata[0].tokenId) || null,
+        counterparty: dir === 'toAddress' ? t.from : t.to, time: t.metadata && t.metadata.blockTimestamp,
+      }));
+    };
+    const [ins, outs] = await Promise.all([call('toAddress'), call('fromAddress')]);
+    const all = [...ins, ...outs].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 150);
+    res.json({ ok: true, wallet: pickAddr(req), data: all });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// -- Route: connection status (never returns keys) --
+app.get('/api/status', async (req, res) => {
+  const set = v => !!v && !String(v).startsWith('PASTE_');
+  const out = {
+    auth: !!DASH_PASSWORD, user: DASH_PASSWORD ? DASH_USER : null, wallet: WALLET_ADDRESS,
+    services: {
+      coinmarketcap: { set: set(CMC_API_KEY) }, opensea: { set: set(OPENSEA_API_KEY) },
+      alchemy: { set: set(ALCHEMY_API_KEY) }, coinspot: { set: !!(process.env.COINSPOT_API_KEY && process.env.COINSPOT_API_SECRET) },
+    },
+  };
+  if (req.query.test) {
+    const t = async (name, fn) => { if (!out.services[name].set) return; try { out.services[name].ok = await fn(); } catch (e) { out.services[name].ok = false; out.services[name].error = e.message; } };
+    await Promise.all([
+      t('coinmarketcap', async () => { const j = await cmcFetch('key/info'); return !!(j && j.data); }),
+      t('opensea', async () => { const j = await httpsFetch('api.opensea.io', '/api/v2/collections/sappy-seals', { 'X-API-KEY': OPENSEA_API_KEY }); return !!(j && j.collection); }),
+      t('alchemy', async () => { const r = await fetch('https://eth-mainnet.g.alchemy.com/v2/' + ALCHEMY_API_KEY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'eth_blockNumber' }) }); const j = await r.json(); return !!j.result; }),
+      t('coinspot', async () => { const body = JSON.stringify({ nonce: Date.now() }); const sign = require('crypto').createHmac('sha512', process.env.COINSPOT_API_SECRET).update(body).digest('hex'); const r = await fetch('https://www.coinspot.com.au/api/v2/ro/status', { method: 'POST', headers: { 'Content-Type': 'application/json', key: process.env.COINSPOT_API_KEY, sign }, body }); const j = await r.json(); return j.status === 'ok'; }),
+    ]);
+  }
+  res.json({ ok: true, ...out });
+});
+
+// -- Route: CoinSpot completed trades (read-only API key) --
+app.get('/api/coinspot/trades', async (req, res) => {
+  try {
+    const key = process.env.COINSPOT_API_KEY, secret = process.env.COINSPOT_API_SECRET;
+    if (!key || !secret) return res.json({ ok: false, error: 'CoinSpot key not set in .env' });
+    const body = JSON.stringify({ nonce: Date.now() });
+    const sign = require('crypto').createHmac('sha512', secret).update(body).digest('hex');
+    const r = await fetch('https://www.coinspot.com.au/api/v2/ro/my/orders/completed', { method: 'POST', headers: { 'Content-Type': 'application/json', key, sign }, body });
+    const j = await r.json();
+    if (j.status !== 'ok') throw new Error(j.message || 'CoinSpot error');
+    const map = (o, side) => ({ id: 'cs-' + side + '-' + o.coin + '-' + (o.solddate || o.created) + '-' + o.amount, side, sym: String(o.coin).toUpperCase(), market: o.market, qty: Number(o.amount), rate: Number(o.rate), total: Number(o.total), audtotal: Number(o.audtotal), fee: Number(o.audfeeExGst || 0) + Number(o.audGst || 0), created: o.solddate || o.created });
+    res.json({ ok: true, data: [...(j.buyorders || []).map(o => map(o, 'buy')), ...(j.sellorders || []).map(o => map(o, 'sell'))] });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/breakout')) return next();
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
