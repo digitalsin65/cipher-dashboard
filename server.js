@@ -108,6 +108,29 @@ app.use(createProxyMiddleware('/api/breakout', {
 }));
 }
 
+// 7-day sparklines from Binance public data (4h candles), cached 10 min
+const SPARK_CACHE = new Map();
+app.get('/api/sparks', async (req, res) => {
+  const syms = String(req.query.symbols || '').toUpperCase().split(',').filter(x => /^[A-Z0-9]{1,15}$/.test(x)).slice(0, 120);
+  const out = {}; const now = Date.now(); const todo = [];
+  for (const sym of syms) { const c = SPARK_CACHE.get(sym); if (c && now - c.t < 600000) out[sym] = c.d; else todo.push(sym); }
+  let i = 0;
+  async function worker() {
+    while (i < todo.length) {
+      const sym = todo[i++];
+      let d = null;
+      if (sym === 'USDT') d = null;
+      else try {
+        const r = await fetch('https://data-api.binance.vision/api/v3/klines?symbol=' + sym + 'USDT&interval=4h&limit=42');
+        if (r.ok) { const k = await r.json(); if (Array.isArray(k) && k.length > 2) d = k.map(x => +x[4]); }
+      } catch {}
+      SPARK_CACHE.set(sym, { t: Date.now(), d }); out[sym] = d;
+    }
+  }
+  await Promise.all(Array.from({ length: 8 }, worker));
+  res.json({ ok: true, data: out });
+});
+
 // Serve the dashboard HTML + built Breakout UI at /breakout/
 app.use(express.static(path.join(__dirname, 'public')));
 

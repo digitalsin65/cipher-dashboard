@@ -813,6 +813,12 @@
   .mk-table tbody tr:hover { background: var(--card2); }
   .mk-sym { color: var(--muted); font-size: 11px; margin-left: 6px; }
   .mk-aud { color: var(--muted); font-size: 11px; }
+  .mk-spark { display:inline-block; cursor:pointer; vertical-align:middle; }
+  .mk-spark:hover { opacity:.75; }
+  #mk-body .mk-row { cursor:pointer; }
+  .fav-star { cursor:pointer; color:var(--muted); font-size:15px; padding:0 6px 0 0; user-select:none; }
+  .fav-star.on { color:#f5c542; }
+  #fav-body .mk-row { cursor:pointer; }
   .mk-up { color: var(--cyan); } .mk-down { color: var(--pink); }
   #view-breakout iframe {
     flex: 1;
@@ -959,13 +965,16 @@
         <!-- Filter row -->
         <div class="filter-row">
           <button class="pill-btn primary" id="view-btn-all"    onclick="switchMainView('all')">All Assets</button>
-          <button class="pill-btn ghost"   id="view-btn-defi"   onclick="switchMainView('defi')">DeFi</button>
+          <button class="pill-btn ghost"   id="view-btn-fav"    onclick="switchMainView('fav')">&#9733; Favourites</button>
           <button class="pill-btn ghost"   id="view-btn-nft"    onclick="switchMainView('nft')">NFTs</button>
-          <button class="pill-btn ghost"   id="view-btn-layer1" onclick="switchMainView('layer1')">Layer 1</button>
-          <button class="pill-btn ghost"   id="view-btn-stable" onclick="switchMainView('stable')">Stablecoins</button>
         </div>
 
         <!-- ═══ CRYPTO VIEW (All Assets / DeFi / Layer1 / Stablecoins) ═══ -->
+        <div id="view-fav" style="display:none">
+          <div class="mk-sub" id="fav-status" style="margin:4px 0 12px">Star any coin in Markets to add it here.</div>
+          <table class="mk-table"><thead><tr><th></th><th>Coin</th><th>Price</th><th>24h</th><th>7d</th><th>7d chart</th><th>Market cap</th></tr></thead>
+          <tbody id="fav-body"></tbody></table>
+        </div>
         <div id="view-crypto">
 
         <!-- Stat Cards -->
@@ -1481,10 +1490,11 @@
           <th onclick="sortMarkets('change_1h')">1h</th>
           <th onclick="sortMarkets('change_24h')">24h</th>
           <th onclick="sortMarkets('change_7d')">7d</th>
+          <th>7d chart</th>
           <th onclick="sortMarkets('volume_24h')">Volume 24h</th>
           <th onclick="sortMarkets('market_cap')">Market cap</th>
         </tr></thead>
-        <tbody id="mk-body"><tr><td colspan="8" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+        <tbody id="mk-body"><tr><td colspan="9" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
       </table>
     </div>
 
@@ -2518,12 +2528,22 @@
 
   function switchMainView(view) {
     // Update pill buttons
-    ['all','defi','nft','layer1','stable'].forEach(k => {
+    ['all','fav','nft'].forEach(k => {
       const btn = document.getElementById('view-btn-' + k);
       if (btn) btn.className = k === view ? 'pill-btn primary' : 'pill-btn ghost';
     });
 
     const isNft = view === 'nft';
+    const isFav = view === 'fav';
+    document.getElementById('view-fav').style.display = isFav ? 'block' : 'none';
+    if (isFav) {
+      document.getElementById('view-crypto').style.display = 'none';
+      document.getElementById('view-nft').style.display = 'none';
+      document.getElementById('right-crypto').style.display = 'flex';
+      document.getElementById('right-nft').style.display = 'none';
+      if (!MK_DATA.length) loadMarkets(); else renderFavs();
+      return;
+    }
 
     // Swap center content
     document.getElementById('view-crypto').style.display = isNft ? 'none' : 'block';
@@ -3278,11 +3298,53 @@
       const j = await (await fetch('/api/listings?limit=100')).json();
       if (!j.ok) throw new Error(j.error || 'Failed');
       MK_DATA = j.data; MK_AT = Date.now();
+      loadSparks();
       document.getElementById('mk-status').textContent = 'Top 100 coins by market cap · prices in US$ with A$ below · updated ' + new Date().toLocaleTimeString();
-      renderMarkets();
+      renderMarkets(); renderFavs();
     } catch (e) {
       document.getElementById('mk-status').textContent = 'Could not load markets: ' + e.message;
     }
+  }
+  let FAVS = JSON.parse(localStorage.getItem('cipher_favs') || '[]');
+  function isFav(sym) { return FAVS.includes(sym); }
+  function starHtml(sym) { return '<span class="fav-star' + (isFav(sym) ? ' on' : '') + '" data-fav="' + sym + '" title="' + (isFav(sym) ? 'Remove from' : 'Add to') + ' favourites">' + (isFav(sym) ? '&#9733;' : '&#9734;') + '</span>'; }
+  function toggleFav(sym) {
+    FAVS = isFav(sym) ? FAVS.filter(s => s !== sym) : FAVS.concat(sym);
+    localStorage.setItem('cipher_favs', JSON.stringify(FAVS));
+    renderMarkets(); renderFavs();
+  }
+  function renderFavs() {
+    const body = document.getElementById('fav-body'); if (!body) return;
+    const rows = FAVS.map(s => MK_DATA.find(c => c.symbol === s)).filter(Boolean);
+    document.getElementById('fav-status').textContent = FAVS.length ? FAVS.length + ' favourite' + (FAVS.length > 1 ? 's' : '') + ' · click a row for the full chart, the star to remove' : 'Star any coin in Markets to add it here.';
+    body.innerHTML = rows.map(c => '<tr class="mk-row" data-sym="' + c.symbol + '"><td>' + starHtml(c.symbol) + '</td><td>' + c.name + '<span class="mk-sym">' + c.symbol + '</span></td><td>' + cell(c.price) + '</td><td>' + mkPct(c.change_24h) + '</td><td>' + mkPct(c.change_7d) + '</td><td>' + sparkSvg(c.symbol) + '</td><td>' + mkUsd(c.market_cap) + '</td></tr>').join('') ||
+      '<tr><td colspan="7" style="text-align:center;color:var(--muted)">' + (MK_DATA.length ? 'No favourites yet' : 'Loading…') + '</td></tr>';
+  }
+  document.addEventListener('click', e => {
+    const st = e.target.closest('[data-fav]');
+    if (st) { e.stopPropagation(); toggleFav(st.dataset.fav); }
+  }, true);
+  let MK_SPARKS = {};
+  document.addEventListener('click', e => {
+    const tr = e.target.closest('#mk-body .mk-row, #fav-body .mk-row');
+    if (!tr || e.target.closest('a') || e.target.closest('[data-fav]')) return;
+    window.open(tvUrl(tr.dataset.sym), '_blank', 'noopener');
+  });
+  async function loadSparks() {
+    try {
+      const syms = MK_DATA.map(c => c.symbol).join(',');
+      const j = await (await fetch('/api/sparks?symbols=' + encodeURIComponent(syms))).json();
+      if (j.ok) { MK_SPARKS = j.data || {}; renderMarkets(); renderFavs(); }
+    } catch (e) { console.warn('[CIPHER] sparks failed', e.message); }
+  }
+  function tvUrl(sym) { return 'https://www.tradingview.com/chart/?symbol=' + encodeURIComponent('CRYPTO:' + sym + 'USD'); }
+  function sparkSvg(sym) {
+    const d = MK_SPARKS[sym];
+    if (!d || d.length < 3) return '<a class="mk-spark" href="' + tvUrl(sym) + '" target="_blank" rel="noopener" title="Open full chart on TradingView" style="color:var(--muted);font-size:11px">chart</a>';
+    const w = 110, ht = 32, mn = Math.min(...d), mx = Math.max(...d), rg = (mx - mn) || 1;
+    const pts = d.map((v, i) => (i / (d.length - 1) * w).toFixed(1) + ',' + (ht - 2 - (v - mn) / rg * (ht - 4)).toFixed(1)).join(' ');
+    const col = d[d.length - 1] >= d[0] ? 'var(--cyan)' : 'var(--pink)';
+    return '<a class="mk-spark" href="' + tvUrl(sym) + '" target="_blank" rel="noopener" title="Open full ' + sym + ' chart on TradingView"><svg width="' + w + '" height="' + ht + '" viewBox="0 0 ' + w + ' ' + ht + '"><polyline fill="none" stroke="' + col + '" stroke-width="1.5" points="' + pts + '"/></svg></a>';
   }
   function sortMarkets(key) {
     MK_SORT = { key, dir: MK_SORT.key === key ? -MK_SORT.dir : (key === 'rank' || key === 'name' ? 1 : -1) };
@@ -3292,13 +3354,14 @@
     const q = (document.getElementById('mk-search').value || '').trim().toLowerCase();
     const rows = MK_DATA.filter(c => !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q))
       .sort((a, b) => { const x = a[MK_SORT.key], y = b[MK_SORT.key]; return (typeof x === 'string' ? x.localeCompare(y) : (x ?? -Infinity) - (y ?? -Infinity)) * MK_SORT.dir; });
-    document.getElementById('mk-body').innerHTML = rows.map(c => '<tr>' +
-      '<td>' + c.rank + '</td>' +
+    document.getElementById('mk-body').innerHTML = rows.map(c => '<tr class="mk-row" data-sym="' + c.symbol + '" title="Open ' + c.symbol + ' chart on TradingView">' +
+      '<td>' + starHtml(c.symbol) + c.rank + '</td>' +
       '<td>' + c.name + '<span class="mk-sym">' + c.symbol + '</span></td>' +
       '<td>' + cell(c.price) + '</td>' +
       '<td>' + mkPct(c.change_1h) + '</td><td>' + mkPct(c.change_24h) + '</td><td>' + mkPct(c.change_7d) + '</td>' +
+      '<td>' + sparkSvg(c.symbol) + '</td>' +
       '<td>' + mkUsd(c.volume_24h) + '</td><td>' + mkUsd(c.market_cap) + '</td></tr>').join('') ||
-      '<tr><td colspan="8" style="text-align:center;color:var(--muted)">No matches</td></tr>';
+      '<tr><td colspan="9" style="text-align:center;color:var(--muted)">No matches</td></tr>';
   }
 
   // ─── Wallet view (holdings at live prices) ───────────────────────────────
@@ -3415,7 +3478,7 @@
         '<td>' + cell(total) + '</td>' +
         '<td>' + (now != null ? mkUsd(now) : '—') + '</td><td>' + res + '</td>' +
         '<td><button class="hs-del" title="Delete" onclick="delTrade(' + t.id + ')">✕</button></td></tr>';
-    }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted)">No trades yet. Add your first one above.</td></tr>';
+    }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted)">No trades yet. Add your first one above.</td></tr>';
   }
   async function loadChain() {
     const body = document.getElementById('hs-chain-body');
