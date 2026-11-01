@@ -1,30 +1,14 @@
-// Starts everything CIPHER needs in ONE process tree, for hosts that run a single "node" entry file.
-//  - Breakout Score engine on an internal port (never exposed directly)
-//  - CIPHER dashboard on the port the host assigns (process.env.PORT)
-const { spawn } = require('child_process');
+// Starts everything CIPHER needs in ONE process, for hosts that run a single "node" entry file.
+// The Breakout engine runs inside this process (no internal port), then the dashboard starts.
 const path = require('path');
+const { pathToFileURL } = require('node:url');
 
-// Each app copy gets its own engine port, so copies never share or fight over one port
-const BREAKOUT_PORT = process.env.BREAKOUT_PORT || String(20000 + (process.pid % 20000));
-
-function startBreakout() {
-  const child = spawn(
-    process.execPath,
-    ['--import', 'tsx', path.join('server', 'src', 'index.ts')],
-    {
-      cwd: path.join(__dirname, 'breakout-score'),
-      env: { ...process.env, PORT: BREAKOUT_PORT },
-      stdio: 'inherit',
-    }
-  );
-  child.on('exit', (code) => {
-    console.error(`[host] Breakout exited (${code}), restarting in 5s`);
-    setTimeout(startBreakout, 5000);
-  });
-  process.on('exit', () => { try { child.kill(); } catch {} });
-}
-
-process.env.BREAKOUT_PORT = BREAKOUT_PORT;
-console.log(`[host] pid ${process.pid} using Breakout port ${BREAKOUT_PORT}`);
-startBreakout();
-require('./server.js');
+(async () => {
+  try {
+    const mod = await import(pathToFileURL(path.join(__dirname, 'breakout-score', 'dist', 'server', 'embed.js')).href);
+    global.__BREAKOUT_ROUTER = mod.createBreakoutRouter();
+  } catch (e) {
+    console.error('[host] Breakout failed to load:', e);
+  }
+  require('./server.js');
+})();

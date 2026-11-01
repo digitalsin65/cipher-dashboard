@@ -5,13 +5,13 @@
   "main": "server.js",
   "scripts": {
     "install:all": "npm install && npm run install:all --prefix breakout-score",
-    "build:breakout": "npm install --include=dev --prefix breakout-score/client && npm run build --prefix breakout-score/client",
+    "build:breakout": "npm install --include=dev --prefix breakout-score/client && npm run build --prefix breakout-score/client && npx --prefix breakout-score tsc -p breakout-score/server/tsconfig.json",
     "dev:breakout": "npm run start --prefix breakout-score",
     "dev:cipher": "node server.js",
     "dev": "npm run build:breakout && concurrently -n cipher,breakout -c cyan,magenta \"npm run dev:cipher\" \"npm run dev:breakout\"",
     "start": "node host.js",
     "start:local": "npm run dev",
-    "postinstall": "npm install --omit=dev --prefix breakout-score",
+    "postinstall": "npm install --include=dev --prefix breakout-score",
     "build": "npm run build:breakout"
   },
   "dependencies": {

@@ -83,6 +83,11 @@ function breakoutOnError(err, _req, res) {
   }));
 }
 
+if (global.__BREAKOUT_ROUTER) {
+  // In-process engine (hosted)
+  app.use(global.__BREAKOUT_ROUTER);
+  app.use('/api/breakout', (req, res, next) => { req.url = '/api' + req.url; global.__BREAKOUT_ROUTER(req, res, next); });
+} else {
 // Context-as-filter form keeps full paths (/api/scores → :3847/api/scores)
 app.use(createProxyMiddleware(
   ['/api/scores', '/api/config', '/api/refresh', '/api/health'],
@@ -101,6 +106,7 @@ app.use(createProxyMiddleware('/api/breakout', {
   logLevel: 'warn',
   onError: breakoutOnError,
 }));
+}
 
 // Serve the dashboard HTML + built Breakout UI at /breakout/
 app.use(express.static(path.join(__dirname, 'public')));
