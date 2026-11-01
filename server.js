@@ -28,36 +28,71 @@ const BREAKOUT_TARGET = `http://127.0.0.1:${BREAKOUT_PORT}`;
 app.use(cors());
 app.use(express.json());
 
-// ---- Sign-in (HTTP Basic). Required in production; set DASH_USER and DASH_PASSWORD on the host. ----
+// ---- Sign-in. Required in production; set DASH_USER and DASH_PASSWORD on the host. ----
 const DASH_USER = process.env.DASH_USER || 'mike';
 const DASH_PASSWORD = process.env.DASH_PASSWORD || '';
 if (process.env.NODE_ENV === 'production' && !DASH_PASSWORD) {
   console.error('DASH_PASSWORD is not set. Refusing to start a public dashboard without a sign-in.');
   process.exit(1);
 }
-// Sign out: always answer 401 so the browser forgets the saved sign-in
+// Sign-in with a login page and a signed cookie (12h). Log out clears the cookie.
+const crypto = require('crypto');
+const SESSION_SECRET = crypto.createHash('sha256').update('cipher-session:' + DASH_USER + ':' + DASH_PASSWORD).digest();
+const SESSION_HOURS = 12;
+const safeEq = (a, b) => {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+};
+const signSession = (exp) => exp + '.' + crypto.createHmac('sha256', SESSION_SECRET).update(String(exp)).digest('hex');
+const validSession = (v) => {
+  const [exp, sig] = String(v || '').split('.');
+  if (!exp || !sig || Date.now() > Number(exp)) return false;
+  return safeEq(sig, signSession(exp).split('.')[1]);
+};
+const getCookie = (req, name) => {
+  const m = (req.headers.cookie || '').split(/;\s*/).find(c => c.startsWith(name + '='));
+  return m ? decodeURIComponent(m.slice(name.length + 1)) : '';
+};
+const secureFlag = (req) => (req.secure || req.headers['x-forwarded-proto'] === 'https') ? '; Secure' : '';
+const loginPage = (msg) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CIPHER sign in</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#090b10;color:#e8eaf0;font-family:system-ui,sans-serif}
+form{background:#10131b;border:1px solid #1e2330;border-radius:14px;padding:32px;width:300px;display:flex;flex-direction:column;gap:12px}
+h1{margin:0 0 8px;font-size:22px;letter-spacing:.15em;color:#00f5c4}input{background:#0b0e14;border:1px solid #2a3040;color:#e8eaf0;border-radius:8px;padding:10px 12px;font-size:14px}
+button{background:#00f5c4;color:#090b10;border:0;border-radius:8px;padding:11px;font-weight:600;font-size:14px;cursor:pointer}.m{color:#ff5c8a;font-size:13px;min-height:16px}</style></head>
+<body><form method="post" action="/login"><h1>CIPHER</h1><input name="username" placeholder="Username" autocomplete="username" required autofocus>
+<input name="password" type="password" placeholder="Password" autocomplete="current-password" required><div class="m">${msg || ''}</div><button>Sign in</button></form></body></html>`;
+
 app.get('/logout', (req, res) => {
-  if (!DASH_PASSWORD) return res.redirect('/');
-  res.set('WWW-Authenticate', 'Basic realm="CIPHER", charset="UTF-8"');
-  res.status(401).send('<body style="background:#090b10;color:#e8eaf0;font-family:monospace;padding:40px">Signed out of CIPHER. <a href="/" style="color:#00f5c4">Sign in again</a></body>');
+  res.set('Set-Cookie', 'cipher_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + secureFlag(req));
+  res.redirect('/login');
 });
 
 if (DASH_PASSWORD) {
-  const crypto = require('crypto');
-  const safeEq = (a, b) => {
-    const ha = crypto.createHash('sha256').update(String(a)).digest();
-    const hb = crypto.createHash('sha256').update(String(b)).digest();
-    return crypto.timingSafeEqual(ha, hb);
-  };
-  app.use((req, res, next) => {
-    const h = req.headers.authorization || '';
-    if (h.startsWith('Basic ')) {
-      const [u, ...rest] = Buffer.from(h.slice(6), 'base64').toString().split(':');
-      if (safeEq(u, DASH_USER) & safeEq(rest.join(':'), DASH_PASSWORD)) return next();
+  const tries = new Map();
+  app.get('/login', (req, res) => res.send(loginPage('')));
+  app.post('/login', express.urlencoded({ extended: false }), (req, res) => {
+    const ip = req.headers['x-forwarded-for'] || req.ip;
+    const t = tries.get(ip) || { n: 0, at: Date.now() };
+    if (Date.now() - t.at > 15 * 60000) { t.n = 0; t.at = Date.now(); }
+    if (t.n >= 10) return res.status(429).send(loginPage('Too many attempts. Try again in 15 minutes.'));
+    const { username = '', password = '' } = req.body || {};
+    if (safeEq(username, DASH_USER) & safeEq(password, DASH_PASSWORD)) {
+      tries.delete(ip);
+      const exp = Date.now() + SESSION_HOURS * 3600000;
+      res.set('Set-Cookie', 'cipher_session=' + encodeURIComponent(signSession(exp)) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + SESSION_HOURS * 3600 + secureFlag(req));
+      return res.redirect('/');
     }
-    res.set('WWW-Authenticate', 'Basic realm="CIPHER", charset="UTF-8"');
-    res.status(401).send('Sign in required');
+    t.n++; tries.set(ip, t);
+    res.status(401).send(loginPage('Wrong username or password.'));
   });
+  app.use((req, res, next) => {
+    if (validSession(getCookie(req, 'cipher_session'))) return next();
+    if (req.path.startsWith('/api/')) return res.status(401).json({ ok: false, error: 'Signed out' });
+    res.redirect('/login');
+  });
+} else {
+  app.get('/login', (req, res) => res.redirect('/'));
 }
 
 // Allow our own scripts to run (overrides wallet extension CSP interference)

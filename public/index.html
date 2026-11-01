@@ -174,6 +174,12 @@
     border-radius: 0 2px 2px 0;
   }
 
+  .sidebar-bottom { position: relative; }
+  .user-menu { display:none; position:absolute; left:12px; right:12px; bottom:calc(100% - 6px); background:var(--card2, #141824); border:1px solid var(--border); border-radius:10px; padding:6px; z-index:50; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+  .user-menu.open { display:block; }
+  .user-menu a { display:block; padding:9px 12px; border-radius:7px; color:var(--text); text-decoration:none; font-size:13px; }
+  .user-menu a:hover { background:rgba(255,255,255,0.05); }
+  .user-menu a.um-danger { color:var(--pink); }
   .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
 
   .badge {
@@ -895,7 +901,11 @@
     </nav>
 
     <div class="sidebar-bottom">
-      <div class="user-card">
+      <div class="user-menu" id="user-menu">
+        <a href="#" onclick="showView('settings'); toggleUserMenu(false); return false;">Settings</a>
+        <a href="/logout" class="um-danger">Log out</a>
+      </div>
+      <div class="user-card" onclick="toggleUserMenu()" title="Account" style="cursor:pointer">
         <div class="avatar">DM</div>
         <div class="user-info">
           <div class="user-name">Mike Gio</div>
@@ -3305,6 +3315,11 @@
       document.getElementById('mk-status').textContent = 'Could not load markets: ' + e.message;
     }
   }
+  function toggleUserMenu(force) {
+    const m = document.getElementById('user-menu'); if (!m) return;
+    m.classList.toggle('open', force === undefined ? !m.classList.contains('open') : force);
+  }
+  document.addEventListener('click', e => { if (!e.target.closest('.sidebar-bottom')) toggleUserMenu(false); });
   let FAVS = JSON.parse(localStorage.getItem('cipher_favs') || '[]');
   function isFav(sym) { return FAVS.includes(sym); }
   function starHtml(sym) { return '<span class="fav-star' + (isFav(sym) ? ' on' : '') + '" data-fav="' + sym + '" title="' + (isFav(sym) ? 'Remove from' : 'Add to') + ' favourites">' + (isFav(sym) ? '&#9733;' : '&#9734;') + '</span>'; }
