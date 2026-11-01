@@ -4,7 +4,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const BREAKOUT_PORT = process.env.BREAKOUT_PORT || '3847';
+// Each app copy gets its own engine port, so copies never share or fight over one port
+const BREAKOUT_PORT = process.env.BREAKOUT_PORT || String(20000 + (process.pid % 20000));
 
 function startBreakout() {
   const child = spawn(
@@ -20,8 +21,10 @@ function startBreakout() {
     console.error(`[host] Breakout exited (${code}), restarting in 5s`);
     setTimeout(startBreakout, 5000);
   });
+  process.on('exit', () => { try { child.kill(); } catch {} });
 }
 
-startBreakout();
 process.env.BREAKOUT_PORT = BREAKOUT_PORT;
+console.log(`[host] pid ${process.pid} using Breakout port ${BREAKOUT_PORT}`);
+startBreakout();
 require('./server.js');
