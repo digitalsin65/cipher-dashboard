@@ -498,8 +498,8 @@
     gap: 3px;
   }
 
-  .trend-up { background: rgba(0,245,196,0.1); color: var(--cyan); }
-  .trend-down { background: rgba(224,64,251,0.1); color: var(--pink); }
+  .trend-up { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .trend-down { background: rgba(239,68,68,0.12); color: #ef4444; }
 
   .donut-footer {
     display: flex;
@@ -600,8 +600,8 @@
   .rev-val { text-align: right; }
   .rev-amount { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
   .rev-change { font-size: 10px; }
-  .pos { color: var(--cyan); }
-  .neg { color: var(--pink); }
+  .pos { color: #22c55e; }
+  .neg { color: #ef4444; }
 
   /* Bar chart */
   .bar-chart {
@@ -702,6 +702,8 @@
 
   .ticker-sym { color: var(--cyan); font-weight: 500; }
   .ticker-price { color: var(--text); }
+  .ticker-bar .pos { color: #22c55e; }
+  .ticker-bar .neg { color: #ef4444; }
 
   @keyframes scroll {
     from { transform: translateX(0); }
@@ -825,7 +827,7 @@
   .fav-star { cursor:pointer; color:var(--muted); font-size:15px; padding:0 6px 0 0; user-select:none; }
   .fav-star.on { color:#f5c542; }
   #fav-body .mk-row { cursor:pointer; }
-  .mk-up { color: var(--cyan); } .mk-down { color: var(--pink); }
+  .mk-up { color: #22c55e; } .mk-down { color: #ef4444; }
   #view-breakout iframe {
     flex: 1;
     width: 100%;
@@ -950,7 +952,7 @@
     <div class="header">
       <div class="greeting">
         <h1>Hello, Mike 👋</h1>
-        <p>Your portfolio is up <span style="color:var(--cyan)">+12.4%</span> this week &nbsp;·&nbsp; <span id="last-refresh" style="color:var(--muted);font-size:10px;">Connecting to API…</span></p>
+        <p>Your portfolio is up <span style="color:#22c55e">+12.4%</span> this week &nbsp;·&nbsp; <span id="last-refresh" style="color:var(--muted);font-size:10px;">Connecting to API…</span></p>
       </div>
       <div class="search-bar">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -995,7 +997,7 @@
             </div>
             <div class="stat-label">Portfolio Value</div>
             <div class="stat-value">$84.2k</div>
-            <div class="stat-sub" style="color:var(--cyan)">▲ +$9,840 today</div>
+            <div class="stat-sub" style="color:#22c55e">▲ +$9,840 today</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon" style="background:rgba(123,94,167,0.1); color:var(--purple)">
@@ -1011,7 +1013,7 @@
             </div>
             <div class="stat-label">24h Volume</div>
             <div class="stat-value">$12.1k</div>
-            <div class="stat-sub" style="color:var(--pink)">▼ -3.2% vs yesterday</div>
+            <div class="stat-sub" style="color:#ef4444">▼ -3.2% vs yesterday</div>
           </div>
         </div>
 
@@ -1959,8 +1961,8 @@
   .feed-price { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text); }
   .feed-change { font-size: 10px; margin-top: 2px; }
   .feed-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .badge-buy  { background: rgba(0,245,196,0.12); color: var(--cyan); }
-  .badge-sell { background: rgba(224,64,251,0.12); color: var(--pink); }
+  .badge-buy  { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .badge-sell { background: rgba(239,68,68,0.12); color: #ef4444; }
   .badge-mint { background: rgba(251,191,36,0.12); color: #fbbf24; }
   .badge-hot  { background: rgba(239,68,68,0.12);  color: #ef4444; }
 
@@ -2086,7 +2088,7 @@
   function updateTickerBar(data) {
     const items = Object.values(data).filter(c => c && c.price && SETTINGS.coins.includes(c.symbol)).map(c => {
       const chg   = c.change_24h ?? 0;
-      const color = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
+      const color = chg >= 0 ? '#22c55e' : '#ef4444';
       const sign  = chg >= 0 ? '+' : '';
       const price = c.price < 1
         ? c.price.toFixed(4)
@@ -2173,7 +2175,7 @@
       const val    = info.price * qty;
       const chg    = info.change_24h ?? 0;
       const sign   = chg >= 0 ? '+' : '';
-      const color  = chg >= 0 ? 'var(--cyan)' : 'var(--pink)';
+      const color  = chg >= 0 ? '#22c55e' : '#ef4444';
       const valStr = val >= 1000 ? '$' + (val / 1000).toFixed(1) + 'k' : '$' + val.toFixed(2);
       const amountEl = item.querySelector('.rev-amount');
       const changeEl = item.querySelector('.rev-change');
@@ -2726,7 +2728,7 @@
           </div>
           <div class="feed-right">
             <div class="feed-price">${c.floor?.toFixed(3) || '—'} ETH</div>
-            <div class="feed-change" style="color:${isUp ? 'var(--cyan)' : 'var(--pink)'}">${isUp ? '+' : ''}${(c.change24h||0).toFixed(1)}%</div>
+            <div class="feed-change" style="color:${isUp ? '#22c55e' : '#ef4444'}">${isUp ? '+' : ''}${(c.change24h||0).toFixed(1)}%</div>
           </div>
         </div>`;
       }).join('');
@@ -3109,7 +3111,7 @@
         const chg    = c.change24h ?? 0;
         const isUp   = chg >= 0;
         const chgStr = (isUp ? '+' : '') + chg.toFixed(1) + '%';
-        const chgCol = isUp ? 'var(--cyan)' : 'var(--pink)';
+        const chgCol = isUp ? '#22c55e' : '#ef4444';
         return `<div class="feed-item" onclick="window.open('${c.openseaUrl}','_blank')">
           <div class="feed-thumb">${c.image ? `<img src="${c.image}" loading="lazy" onerror="this.parentElement.textContent='🖼'">` : '🖼'}</div>
           <div class="feed-body">
@@ -3145,7 +3147,7 @@
         </div>
         <div class="feed-right">
           <div class="feed-price">${c.floor} ETH</div>
-          <div class="feed-change" style="color:${isUp ? 'var(--cyan)' : 'var(--pink)'}">${isUp ? '+' : ''}${c.chg}%</div>
+          <div class="feed-change" style="color:${isUp ? '#22c55e' : '#ef4444'}">${isUp ? '+' : ''}${c.chg}%</div>
         </div>
       </div>`;
     }).join('');
@@ -3358,7 +3360,7 @@
     if (!d || d.length < 3) return '<a class="mk-spark" href="' + tvUrl(sym) + '" target="_blank" rel="noopener" title="Open full chart on TradingView" style="color:var(--muted);font-size:11px">chart</a>';
     const w = 110, ht = 32, mn = Math.min(...d), mx = Math.max(...d), rg = (mx - mn) || 1;
     const pts = d.map((v, i) => (i / (d.length - 1) * w).toFixed(1) + ',' + (ht - 2 - (v - mn) / rg * (ht - 4)).toFixed(1)).join(' ');
-    const col = d[d.length - 1] >= d[0] ? 'var(--cyan)' : 'var(--pink)';
+    const col = d[d.length - 1] >= d[0] ? '#22c55e' : '#ef4444';
     return '<a class="mk-spark" href="' + tvUrl(sym) + '" target="_blank" rel="noopener" title="Open full ' + sym + ' chart on TradingView"><svg width="' + w + '" height="' + ht + '" viewBox="0 0 ' + w + ' ' + ht + '"><polyline fill="none" stroke="' + col + '" stroke-width="1.5" points="' + pts + '"/></svg></a>';
   }
   function sortMarkets(key) {
