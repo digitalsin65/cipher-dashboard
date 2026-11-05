@@ -1852,6 +1852,7 @@
           <option value="ADA">ADA — Cardano</option>
           <option value="DOGE">DOGE — Dogecoin</option>
         </select>
+        <input id="form-nft" type="text" placeholder="OpenSea link, slug or 0x contract" autocomplete="off" spellcheck="false" style="display:none;width:100%;background:#141821;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:8px 10px;color:#e8eaf0;font-family:'DM Mono',monospace;font-size:12px;outline:none;">
       </div>
       <!-- Direction -->
       <div>
@@ -2344,6 +2345,7 @@
       cryptoBtn.style.cssText += ';border-color:rgba(0,245,196,0.4);background:rgba(0,245,196,0.08);color:#00f5c4';
       nftBtn.style.cssText    += ';border-color:rgba(255,255,255,0.06);background:transparent;color:#5a6070';
       label.textContent = 'Target Price ($)';
+      assetSel.style.display = ''; document.getElementById('form-nft').style.display = 'none';
       assetSel.innerHTML = `
         <option value="BTC">BTC — Bitcoin</option>
         <option value="ETH">ETH — Ethereum</option>
@@ -2358,17 +2360,23 @@
       nftBtn.style.cssText    += ';border-color:rgba(123,94,167,0.4);background:rgba(123,94,167,0.08);color:#7b5ea7';
       cryptoBtn.style.cssText += ';border-color:rgba(255,255,255,0.06);background:transparent;color:#5a6070';
       label.textContent = 'Floor Price (ETH)';
-      assetSel.innerHTML = `
-        <option value="BAYC">BAYC — Bored Ape YC</option>
-        <option value="Azuki">Azuki</option>
-        <option value="Pudgy">Pudgy Penguins</option>
-        <option value="Doodles">Doodles</option>
-        <option value="CloneX">CloneX</option>
-        <option value="Moonbirds">Moonbirds</option>`;
+      assetSel.style.display = 'none';
+      const nftIn = document.getElementById('form-nft'); nftIn.style.display = ''; nftIn.focus();
     }
   }
 
-  function createAlert() {
+  // Turn an OpenSea link, slug or contract address into an API path
+  function nftLookupPath(raw) {
+    raw = (raw || '').trim();
+    if (!raw) return null;
+    const m = raw.match(/opensea\.io\/(?:[a-z-]+\/)?collection\/([^\/?#\s]+)/i);
+    if (m) return '/api/nft/collection/' + encodeURIComponent(m[1].toLowerCase());
+    if (/^0x[a-fA-F0-9]{40}$/.test(raw)) return '/api/nft/search-contract/' + raw;
+    return '/api/nft/collection/' + encodeURIComponent(raw.toLowerCase().replace(/\s+/g, '-'));
+  }
+
+  async function createAlert() {
+    if (formType === 'nft') return createNftAlert();
     const asset     = document.getElementById('form-asset').value;
     const direction = document.getElementById('form-direction').value;
     const target    = parseFloat(document.getElementById('form-target').value);
@@ -2386,6 +2394,60 @@
     const dirLabel = {above:'above', below:'below', change_up:'% change ↑', change_down:'% change ↓'}[direction];
     showToast('success', 'Alert Created!', asset + ' ' + dirLabel + ' ' + unit + target.toLocaleString());
   }
+
+  async function createNftAlert() {
+    const input     = document.getElementById('form-nft');
+    const direction = document.getElementById('form-direction').value;
+    const target    = parseFloat(document.getElementById('form-target').value);
+    const note      = document.getElementById('form-note').value.trim();
+    const path      = nftLookupPath(input.value);
+    if (!path) { showToast('error', 'Missing Collection', 'Paste an OpenSea collection link, slug or contract address.'); return; }
+    if (!target || isNaN(target)) { showToast('error', 'Missing Target', 'Please enter a valid floor price.'); return; }
+    if (direction !== 'above' && direction !== 'below') { showToast('error', 'Not Supported', 'NFT alerts work on floor price above or below.'); return; }
+    let c;
+    try {
+      const j = await (await fetch(path)).json();
+      if (!j.ok || !j.data || !j.data.slug) throw new Error(j.error || 'Not found');
+      c = j.data;
+    } catch (e) {
+      showToast('error', 'Collection Not Found', 'Check the OpenSea link or slug and try again.');
+      return;
+    }
+    const name = c.name || c.slug;
+    if (c.floorPrice) NFT_FLOORS[name] = +(+c.floorPrice).toFixed(4);
+    alerts.unshift({ id:++alertIdCounter, type:'nft', asset:name, slug:c.slug, direction, target, note:note||null, status:'active', created:Date.now() });
+    input.value = '';
+    document.getElementById('form-target').value = '';
+    document.getElementById('form-note').value   = '';
+    renderAlerts();
+    updateBadges();
+    showToast('success', 'Alert Created!', name + (direction === 'above' ? ' above ' : ' below ') + target + ' ETH' + (c.floorPrice ? ' (floor now ' + (+c.floorPrice).toFixed(4) + ')' : ''));
+  }
+
+  // Check NFT floor alerts against OpenSea every few minutes
+  const NFT_ALERT_SLUGS = { BAYC:'boredapeyachtclub', Azuki:'azuki', Pudgy:'pudgypenguins', Doodles:'doodles-official', CloneX:'clonex', Moonbirds:'proof-moonbirds' };
+  async function checkNftAlerts() {
+    const active = alerts.filter(a => a.type === 'nft' && a.status === 'active' && (a.direction === 'above' || a.direction === 'below'));
+    const slugs = [...new Set(active.map(a => a.slug || NFT_ALERT_SLUGS[a.asset]).filter(Boolean))];
+    if (!slugs.length) return;
+    const floors = {};
+    await Promise.all(slugs.map(async sl => {
+      try { const j = await (await fetch('/api/nft/collection/' + encodeURIComponent(sl))).json(); if (j.ok && j.data && j.data.floorPrice) floors[sl] = +j.data.floorPrice; } catch (e) {}
+    }));
+    let changed = false;
+    active.forEach(a => {
+      const f = floors[a.slug || NFT_ALERT_SLUGS[a.asset]];
+      if (f == null) return;
+      NFT_FLOORS[a.asset] = +f.toFixed(4); changed = true;
+      if ((a.direction === 'above' && f >= a.target) || (a.direction === 'below' && f <= a.target)) {
+        a.status = 'triggered';
+        showToast('triggered', '🔔 ' + a.asset + ' Alert Hit!', a.asset + ' floor is now ' + f.toFixed(4) + ' ETH — ' + (a.note || a.direction));
+      }
+    });
+    if (changed) { renderAlerts(); updateBadges(); }
+  }
+  setTimeout(checkNftAlerts, 5000);
+  setInterval(checkNftAlerts, 300000);
 
   function toggleAlert(id) {
     const a = alerts.find(x => x.id === id);
