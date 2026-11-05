@@ -337,3 +337,26 @@ h1 {
 .signal-row__label.tip { white-space: nowrap; text-overflow: clip; }
 .tip::after { white-space: normal; }
 
+
+/* ═══ Mobile (added) ═══ */
+@media (max-width: 640px) {
+  .app { padding: 16px 10px 40px; }
+  .header { flex-wrap: wrap; gap: 10px; }
+  .btn { min-height: 40px; }
+  .list { gap: 6px; }
+  .coin__main { grid-template-columns: 36px minmax(0, 1fr) 72px 24px; gap: 6px; padding: 12px 10px; min-height: 48px; }
+  .coin__body { padding: 0 10px 12px; }
+  .signals { grid-template-columns: 1fr; gap: 10px; }
+  .signal-row__head { flex-wrap: wrap; }
+  .signal-row__label.tip { white-space: normal; }
+  .tip { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .tip::after {
+    left: 0; right: auto;
+    width: max-content;
+    max-width: min(70vw, 280px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .tip:active::after, .tip:focus-within::after { opacity: 1; transform: translateY(0); }
+  .coin:active, .coin:focus-within { z-index: 30; }
+}
