@@ -166,6 +166,32 @@ app.get('/api/sparks', async (req, res) => {
   res.json({ ok: true, data: out });
 });
 
+// ---- Price alerts, shared across devices. Stored outside the app folder so redeploys keep them. ----
+const ALERTS_FILE = process.env.ALERTS_FILE || path.join(require('os').homedir(), 'cipher-data', 'alerts.json');
+app.get('/api/alerts', (req, res) => {
+  try {
+    const j = JSON.parse(require('fs').readFileSync(ALERTS_FILE, 'utf8'));
+    res.json({ ok: true, alerts: Array.isArray(j.alerts) ? j.alerts : [], saved: true });
+  } catch (e) {
+    res.json({ ok: true, alerts: [], saved: false });
+  }
+});
+app.put('/api/alerts', (req, res) => {
+  const list = req.body && req.body.alerts;
+  if (!Array.isArray(list) || list.length > 500) return res.status(400).json({ ok: false, error: 'Bad alert list' });
+  try {
+    const fsx = require('fs');
+    fsx.mkdirSync(path.dirname(ALERTS_FILE), { recursive: true });
+    const tmp = ALERTS_FILE + '.tmp';
+    fsx.writeFileSync(tmp, JSON.stringify({ alerts: list, updated: Date.now() }));
+    fsx.renameSync(tmp, ALERTS_FILE);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('alerts save error:', e.message);
+    res.status(500).json({ ok: false, error: 'Could not save alerts' });
+  }
+});
+
 // Serve the dashboard HTML + built Breakout UI at /breakout/
 app.use(express.static(path.join(__dirname, 'public')));
 

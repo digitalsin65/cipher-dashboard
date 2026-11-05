@@ -2119,7 +2119,43 @@
     { id:5, type:'nft',    asset:'Azuki', direction:'below',      target:7,     note:'Floor dropping',    status:'paused',    created: Date.now()-172800000},
   ];
   try { const saved = JSON.parse(localStorage.getItem('cipher_alerts') || 'null'); if (Array.isArray(saved)) { alerts = saved; alertIdCounter = Math.max(alertIdCounter, ...saved.map(a => a.id || 0)); } } catch (e) {}
-  function saveAlerts() { try { localStorage.setItem('cipher_alerts', JSON.stringify(alerts)); } catch (e) {} }
+  // Alerts are shared across devices through the server; the browser copy is a fast local cache.
+  let ALERTS_SYNCED = false, ALERTS_APPLYING = false, ALERTS_PUSH_T = null;
+  function newAlertId() { alertIdCounter = Math.max(Date.now(), alertIdCounter + 1); return alertIdCounter; }
+  function saveAlerts() {
+    try { localStorage.setItem('cipher_alerts', JSON.stringify(alerts)); } catch (e) {}
+    if (!ALERTS_SYNCED || ALERTS_APPLYING) return;
+    clearTimeout(ALERTS_PUSH_T);
+    ALERTS_PUSH_T = setTimeout(pushAlerts, 300);
+  }
+  function pushAlerts() {
+    return fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alerts }) }).catch(() => {});
+  }
+  async function syncAlerts() {
+    let j;
+    try { j = await (await fetch('/api/alerts', { cache: 'no-store' })).json(); } catch (e) { return; }
+    if (!j || !j.ok) return;
+    let push = false, next;
+    if (!j.saved) { next = alerts; push = true; }
+    else {
+      next = j.alerts.slice();
+      if (!localStorage.getItem('cipher_alerts_merged')) {
+        // First sync on this device: keep any alerts made here that the server doesn't have yet
+        const sig = a => [a.type, a.slug || a.asset, a.direction, a.target].join('|');
+        const have = new Set(next.map(sig)), ids = new Set(next.map(a => a.id));
+        alerts.forEach(a => { if (!have.has(sig(a))) { const b = Object.assign({}, a); if (ids.has(b.id)) b.id = newAlertId(); ids.add(b.id); next.push(b); push = true; } });
+      }
+    }
+    try { localStorage.setItem('cipher_alerts_merged', '1'); } catch (e) {}
+    next.forEach(a => { if (typeof a.id === 'number' && a.id > alertIdCounter) alertIdCounter = a.id; });
+    const changed = JSON.stringify(next) !== JSON.stringify(alerts);
+    alerts = next; ALERTS_SYNCED = true;
+    if (changed) { ALERTS_APPLYING = true; try { renderAlerts(); updateBadges(); } catch (e) {} ALERTS_APPLYING = false; }
+    try { localStorage.setItem('cipher_alerts', JSON.stringify(alerts)); } catch (e) {}
+    if (push) pushAlerts();
+  }
+  setTimeout(syncAlerts, 0);
+  setInterval(syncAlerts, 60000);
 
   // ─── Holdings (saved in localStorage) ──────────────────────────────────
   const DEFAULT_HOLDINGS = {
@@ -2315,6 +2351,7 @@
     setTimeout(() => { panel.style.transform = 'translateX(0)'; }, 10);
     renderAlerts();
     updateBadges();
+    syncAlerts();
   }
 
   function closeAlerts() {
@@ -2385,7 +2422,7 @@
       showToast('error', 'Missing Target', 'Please enter a valid target price.');
       return;
     }
-    alerts.unshift({ id:++alertIdCounter, type:formType, asset, direction, target, note:note||null, status:'active', created:Date.now() });
+    alerts.unshift({ id:newAlertId(), type:formType, asset, direction, target, note:note||null, status:'active', created:Date.now() });
     document.getElementById('form-target').value = '';
     document.getElementById('form-note').value   = '';
     renderAlerts();
@@ -2415,7 +2452,7 @@
     }
     const name = c.name || c.slug;
     if (c.floorPrice) NFT_FLOORS[name] = +(+c.floorPrice).toFixed(4);
-    alerts.unshift({ id:++alertIdCounter, type:'nft', asset:name, slug:c.slug, direction, target, note:note||null, status:'active', created:Date.now() });
+    alerts.unshift({ id:newAlertId(), type:'nft', asset:name, slug:c.slug, direction, target, note:note||null, status:'active', created:Date.now() });
     input.value = '';
     document.getElementById('form-target').value = '';
     document.getElementById('form-note').value   = '';
