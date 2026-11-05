@@ -2117,6 +2117,8 @@
     { id:4, type:'crypto', asset:'SOL',   direction:'change_up',  target:10,    note:'10% pump alert',    status:'triggered', created: Date.now()-86400000 },
     { id:5, type:'nft',    asset:'Azuki', direction:'below',      target:7,     note:'Floor dropping',    status:'paused',    created: Date.now()-172800000},
   ];
+  try { const saved = JSON.parse(localStorage.getItem('cipher_alerts') || 'null'); if (Array.isArray(saved)) { alerts = saved; alertIdCounter = Math.max(alertIdCounter, ...saved.map(a => a.id || 0)); } } catch (e) {}
+  function saveAlerts() { try { localStorage.setItem('cipher_alerts', JSON.stringify(alerts)); } catch (e) {} }
 
   // ─── Holdings (saved in localStorage) ──────────────────────────────────
   const DEFAULT_HOLDINGS = {
@@ -2403,6 +2405,7 @@
   }
 
   function renderAlerts() {
+    saveAlerts();
     const list = document.getElementById('alert-list');
     let filtered = alerts;
     if (currentTab === 'crypto')    filtered = alerts.filter(a => a.type === 'crypto');
@@ -2464,7 +2467,7 @@
         </div>
         <div class="alert-actions">
           ${a.status !== 'triggered' ? '<button class="alert-btn" onclick="toggleAlert(' + a.id + ')" title="' + (a.status==='paused'?'Resume':'Pause') + '">' + toggleIcon + '</button>' : ''}
-          <button class="alert-btn danger" onclick="deleteAlert(' + a.id + ')" title="Delete">
+          <button class="alert-btn danger" onclick="deleteAlert(${a.id})" title="Delete">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6l-1 14H6L5 6"/>
