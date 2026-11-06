@@ -921,6 +921,44 @@
     #alerts-panel div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
     #view-wallet .wl-card { min-width: calc(50% - 5px); }
   }
+  /* ── Analyze tab ── */
+  #view-analyze { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
+  #view-analyze.active { display: flex; }
+  .an-pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .an-pick input { width: 160px; text-transform: uppercase; }
+  .an-pick button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border, rgba(255,255,255,.1)); background: rgba(0,245,196,.1); color: var(--cyan); cursor: pointer; font: inherit; }
+  .an-quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .an-quick button { padding: 4px 10px; font-size: 11px; background: transparent; color: var(--muted2, #888); border: 1px solid rgba(128,128,128,.3); border-radius: 6px; cursor: pointer; font-family: inherit; }
+  .an-top { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.3fr); gap: 16px; margin-top: 16px; }
+  .an-box { background: var(--card, rgba(255,255,255,.03)); border: 1px solid var(--border, rgba(255,255,255,.08)); border-radius: 12px; padding: 18px; }
+  .an-coin { font-size: 22px; font-weight: 700; }
+  .an-coin small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .an-price { font-size: 18px; margin-top: 6px; font-family: 'DM Mono', monospace; }
+  .an-overall { display: flex; align-items: baseline; gap: 12px; margin-top: 16px; }
+  .an-overall .num { font-size: 48px; font-weight: 800; font-family: 'DM Mono', monospace; }
+  .an-label { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 13px; }
+  .an-radar { display: flex; justify-content: center; align-items: center; }
+  .an-radar svg { width: 100%; max-width: 340px; height: auto; }
+  .an-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  .an-card h4 { margin: 0; font-size: 13px; color: var(--muted2, #aaa); text-transform: uppercase; letter-spacing: .06em; }
+  .an-card .sc { font-size: 28px; font-weight: 800; font-family: 'DM Mono', monospace; margin: 6px 0; }
+  .an-card .na { font-size: 13px; color: var(--muted); margin: 10px 0; }
+  .an-card input[type=range] { width: 100%; accent-color: var(--cyan); }
+  .an-w { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .an-card ul { list-style: none; padding: 0; margin: 10px 0 0; font-size: 12px; line-height: 1.45; }
+  .an-card li { padding: 3px 0 3px 16px; position: relative; color: var(--muted2, #bbb); }
+  .an-card li::before { content: '•'; position: absolute; left: 2px; color: var(--muted); }
+  .an-card li.up::before { content: '▲'; color: #22c55e; font-size: 9px; top: 6px; }
+  .an-card li.down::before { content: '▼'; color: #ef4444; font-size: 9px; top: 6px; }
+  .an-disc { font-size: 11px; color: var(--muted); margin-top: 16px; }
+  .an-msg { color: var(--muted); padding: 30px 0; text-align: center; }
+  @media (max-width: 1000px) { .an-cards { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) {
+    #view-analyze { padding: 66px 12px 80px; }
+    .an-top, .an-cards { grid-template-columns: 1fr; }
+    .an-overall .num { font-size: 40px; }
+    .an-pick input { flex: 1; min-width: 0; }
+  }
 </style>
 </head>
 <body>
@@ -960,6 +998,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
         Breakout
         <span class="badge">LIVE</span>
+      </a>
+      <a class="nav-item" href="#" id="nav-analyze" onclick="openAnalyze(); return false;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><polygon points="12 7 17 12 12 17 7 12"/></svg>
+        Analyze
       </a>
       <a class="nav-item" href="/nfts.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -1705,6 +1747,25 @@
       <div class="st-sec"><h3>Account</h3>
         <div class="st-row" id="st-account"></div>
       </div>
+    </div>
+
+    <div id="view-analyze" aria-label="Analyze">
+      <div class="mk-head">
+        <div>
+          <h2>Analyze</h2>
+          <div class="mk-sub">Technical, fundamental, on-chain and sentiment scores for one coin</div>
+        </div>
+        <div>
+          <form class="an-pick" onsubmit="anGo(); return false;">
+            <input class="mk-search" id="an-input" list="an-list" placeholder="Coin symbol e.g. BTC" autocomplete="off">
+            <datalist id="an-list"></datalist>
+            <button type="submit">Analyze</button>
+          </form>
+          <div class="an-quick" id="an-quick"></div>
+        </div>
+      </div>
+      <div id="an-out"><div class="an-msg">Pick a coin above.</div></div>
+      <div class="an-disc">Rule-based score from public data, for comparing coins. Not financial advice.</div>
     </div>
 
     <div id="view-breakout" aria-label="Breakout Score">
@@ -3561,7 +3622,7 @@
     const q = (document.getElementById('mk-search').value || '').trim().toLowerCase();
     const rows = MK_DATA.filter(c => !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q))
       .sort((a, b) => { const x = a[MK_SORT.key], y = b[MK_SORT.key]; return (typeof x === 'string' ? x.localeCompare(y) : (x ?? -Infinity) - (y ?? -Infinity)) * MK_SORT.dir; });
-    document.getElementById('mk-body').innerHTML = rows.map(c => '<tr class="mk-row" data-sym="' + c.symbol + '" title="Open ' + c.symbol + ' chart on TradingView">' +
+    document.getElementById('mk-body').innerHTML = rows.map(c => '<tr class="mk-row" data-sym="' + c.symbol + '" title="Analyze ' + c.symbol + '">' +
       '<td>' + starHtml(c.symbol) + c.rank + '</td>' +
       '<td>' + c.name + '<span class="mk-sym">' + c.symbol + '</span></td>' +
       '<td>' + cell(c.price) + '</td>' +
@@ -3806,6 +3867,18 @@
     if (MK_TIMER) { clearInterval(MK_TIMER); MK_TIMER = null; }
     const settings = document.getElementById('view-settings');
     if (settings) settings.classList.toggle('active', name === 'settings');
+    const analyze = document.getElementById('view-analyze');
+    if (analyze) analyze.classList.toggle('active', name === 'analyze');
+    if (name === 'analyze') {
+      overview.classList.add('hidden');
+      breakout.classList.remove('active');
+      ['view-history', 'view-wallet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
+      if (WL_TIMER) { clearInterval(WL_TIMER); WL_TIMER = null; }
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const na = document.getElementById('nav-analyze'); if (na) na.classList.add('active');
+      anLoad();
+      return;
+    }
     if (name === 'settings') {
       overview.classList.add('hidden');
       breakout.classList.remove('active');
@@ -3884,6 +3957,102 @@
   loadOverviewNFTs();
 </script>
 <script>
+  // ─── Analyze tab ─────────────────────────────────────────────────────────
+  const AN_KEYS = [['technical', 'Technical'], ['fundamental', 'Fundamental'], ['onchain', 'On-Chain'], ['sentiment', 'Sentiment']];
+  const AN_DEFAULT_W = { technical: 30, fundamental: 30, onchain: 15, sentiment: 25 };
+  let AN_W = (() => { try { return { ...AN_DEFAULT_W, ...JSON.parse(localStorage.getItem('cipher_analyze_weights') || '{}') }; } catch (e) { return { ...AN_DEFAULT_W }; } })();
+  let AN_DATA = null, AN_SYM = null, AN_SAVE_T = null;
+  const anEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const anCol = v => v >= 60 ? '#22c55e' : v >= 40 ? '#eab308' : '#ef4444';
+  function anLabel(v) { return v >= 75 ? 'Strong Buy' : v >= 60 ? 'Buy' : v >= 40 ? 'Neutral' : v >= 25 ? 'Sell' : 'Strong Sell'; }
+  function anSaveWeights() {
+    try { localStorage.setItem('cipher_analyze_weights', JSON.stringify(AN_W)); } catch (e) {}
+    clearTimeout(AN_SAVE_T);
+    AN_SAVE_T = setTimeout(() => fetch('/api/analyze-weights', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weights: AN_W }) }).catch(() => {}), 600);
+  }
+  async function anSyncWeights() {
+    try { const j = await (await fetch('/api/analyze-weights')).json(); if (j.ok && j.weights) { AN_W = { ...AN_DEFAULT_W, ...j.weights }; localStorage.setItem('cipher_analyze_weights', JSON.stringify(AN_W)); if (AN_DATA) anRender(); } else if (j.ok && !j.saved) anSaveWeights(); } catch (e) {}
+  }
+  function anFillPicker() {
+    const syms = (typeof MK_DATA !== 'undefined' && MK_DATA.length ? MK_DATA.map(c => c.symbol) : ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE', 'ADA', 'LINK', 'AVAX', 'DOT']);
+    document.getElementById('an-list').innerHTML = syms.map(s => '<option value="' + anEsc(s) + '">').join('');
+    document.getElementById('an-quick').innerHTML = syms.slice(0, 8).map(s => '<button type="button" onclick="openAnalyze(\'' + anEsc(s) + '\')">' + anEsc(s) + '</button>').join('');
+  }
+  function anGo() { const v = document.getElementById('an-input').value.trim().toUpperCase(); if (v) openAnalyze(v); }
+  function openAnalyze(sym) { AN_SYM = String(sym || AN_SYM || 'BTC').toUpperCase(); showView('analyze'); }
+  async function anLoad() {
+    anFillPicker();
+    const sym = AN_SYM || 'BTC'; AN_SYM = sym;
+    document.getElementById('an-input').value = sym;
+    if (AN_DATA && AN_DATA.symbol === sym) return anRender();
+    document.getElementById('an-out').innerHTML = '<div class="an-msg">Analyzing ' + anEsc(sym) + '…</div>';
+    try {
+      const j = await (await fetch('/api/analyze/' + encodeURIComponent(sym))).json();
+      if (!j.ok) throw new Error(j.error || 'failed');
+      if (AN_SYM !== sym) return;
+      AN_DATA = j.data; anRender();
+    } catch (e) { document.getElementById('an-out').innerHTML = '<div class="an-msg">Could not analyze ' + anEsc(sym) + ': ' + anEsc(e.message) + '</div>'; }
+  }
+  function anOverall() {
+    const S = AN_DATA.scores; let tw = 0, ts = 0;
+    AN_KEYS.forEach(([k]) => { if (S[k] && S[k].available) { tw += +AN_W[k]; ts += +AN_W[k] * S[k].score; } });
+    return tw > 0 ? Math.round(ts / tw) : null;
+  }
+  function anRadar() {
+    const S = AN_DATA.scores, cx = 150, cy = 140, R = 100;
+    const ang = i => -Math.PI / 2 + i * Math.PI / 2;
+    const pt = (i, v) => [cx + Math.cos(ang(i)) * R * v / 100, cy + Math.sin(ang(i)) * R * v / 100];
+    let g = '';
+    [25, 50, 75, 100].forEach(l => { g += '<polygon points="' + AN_KEYS.map((_, i) => pt(i, l).join(',')).join(' ') + '" fill="none" stroke="rgba(128,128,128,.25)"/>'; });
+    AN_KEYS.forEach((_, i) => { const p = pt(i, 100); g += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p[0] + '" y2="' + p[1] + '" stroke="rgba(128,128,128,.25)"/>'; });
+    const vals = AN_KEYS.map(([k]) => S[k] && S[k].available ? S[k].score : 0);
+    g += '<polygon points="' + vals.map((v, i) => pt(i, v).join(',')).join(' ') + '" fill="rgba(0,245,196,.18)" stroke="var(--cyan)" stroke-width="2"/>';
+    vals.forEach((v, i) => { const p = pt(i, v); g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" fill="var(--cyan)"/>'; });
+    const lp = [[cx, 22, 'middle'], [cx + R + 10, cy + 4, 'start'], [cx, cy + R + 22, 'middle'], [cx - R - 10, cy + 4, 'end']];
+    AN_KEYS.forEach(([k, n], i) => { const ok = S[k] && S[k].available; g += '<text x="' + lp[i][0] + '" y="' + lp[i][1] + '" text-anchor="' + lp[i][2] + '" font-size="12" fill="currentColor" opacity="' + (ok ? .9 : .4) + '">' + n + (ok ? ' ' + S[k].score : ' n/a') + '</text>'; });
+    return '<svg viewBox="-75 0 450 280" style="color:var(--text)">' + g + '</svg>';
+  }
+  function anPrice(usd) {
+    if (usd == null) return '—';
+    const f = v => v >= 1000 ? Math.round(v).toLocaleString() : v >= 1 ? v.toFixed(2) : v.toPrecision(4);
+    const us = 'US$' + f(usd), au = (typeof AUD_RATE !== 'undefined' && AUD_RATE) ? 'A$' + f(usd * AUD_RATE) : null;
+    if (!au) return us;
+    return (typeof SETTINGS !== 'undefined' && SETTINGS.currency === 'AUD') ? au + ' <span style="color:var(--muted);font-size:13px">' + us + '</span>' : us + ' <span style="color:var(--muted);font-size:13px">' + au + '</span>';
+  }
+  const anPct = (v, l) => v == null ? '' : '<span style="color:' + (v >= 0 ? '#22c55e' : '#ef4444') + '">' + (v >= 0 ? '▲ +' : '▼ ') + v.toFixed(2) + '% ' + l + '</span>';
+  function anRender() {
+    const d = AN_DATA, S = d.scores, o = anOverall();
+    const avail = AN_KEYS.filter(([k]) => S[k] && S[k].available);
+    const tw = avail.reduce((s, [k]) => s + +AN_W[k], 0);
+    const cards = AN_KEYS.map(([k, n]) => {
+      const s = S[k] || {}; const eff = s.available && tw ? Math.round(+AN_W[k] / tw * 100) : 0;
+      return '<div class="an-box an-card"><h4>' + n + '</h4>' +
+        (s.available ? '<div class="sc" style="color:' + anCol(s.score) + '">' + s.score + '%</div>' : '<div class="na">Not available' + (s.note ? ': ' + anEsc(s.note) : '') + '</div>') +
+        '<div class="an-w"><span>Weight ' + AN_W[k] + '</span><span>' + (s.available ? 'counts ' + eff + '%' : 'shared to others') + '</span></div>' +
+        '<input type="range" min="0" max="100" step="5" value="' + AN_W[k] + '" oninput="anSetW(\'' + k + '\', this.value)">' +
+        '<ul>' + (s.reasons || []).map(r => '<li class="' + (r.up === true ? 'up' : r.up === false ? 'down' : '') + '">' + anEsc(r.text) + '</li>').join('') + '</ul></div>';
+    }).join('');
+    document.getElementById('an-out').innerHTML =
+      '<div class="an-top"><div class="an-box"><div class="an-coin">' + anEsc(d.name) + (d.name !== d.symbol ? '<small>' + anEsc(d.symbol) + '</small>' : '') + '</div>' +
+      '<div class="an-price">' + anPrice(d.price) + '</div><div style="font-size:12px;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">' + anPct(d.change_7d, '7d') + anPct(d.change_30d, '30d') + '</div>' +
+      (o == null ? '<div class="an-msg">No scores available for this coin.</div>' :
+        '<div class="an-overall"><span class="num" style="color:' + anCol(o) + '">' + o + '</span><span style="color:var(--muted)">/ 100</span></div>' +
+        '<span class="an-label" style="background:' + anCol(o) + '22;color:' + anCol(o) + '">' + anLabel(o) + '</span>') +
+      '<div style="font-size:11px;color:var(--muted);margin-top:12px">Based on ' + avail.length + ' of 4 scores · updated ' + new Date(d.updated).toLocaleTimeString() + '</div></div>' +
+      '<div class="an-box an-radar">' + anRadar() + '</div></div>' +
+      '<div class="an-cards">' + cards + '</div>';
+  }
+  function anSetW(k, v) { AN_W[k] = +v; anSaveWeights(); const y = document.getElementById('view-analyze').scrollTop; anRender(); document.getElementById('view-analyze').scrollTop = y; }
+  // Coin rows in Markets and Overview favourites open Analyze (the sparkline still opens TradingView).
+  document.addEventListener('click', e => {
+    const tr = e.target.closest('#mk-body .mk-row, #fav-body .mk-row');
+    if (!tr || e.target.closest('a') || e.target.closest('[data-fav]')) return;
+    e.stopImmediatePropagation(); openAnalyze(tr.dataset.sym);
+  }, true);
+  window.addEventListener('hashchange', () => { const m = location.hash.match(/^#analyze(?:\/([A-Za-z0-9]+))?$/); if (m) { openAnalyze(m[1] || AN_SYM); history.replaceState(null, '', location.pathname + location.search); } });
+  anSyncWeights();
+</script>
+<script>
   // Mobile nav drawer (added)
   function toggleNav(open) {
     if (open === undefined) open = !document.body.classList.contains('nav-open');
@@ -3903,6 +4072,7 @@
       try {
         if (h === 'portfolio' && typeof openHoldings === 'function') openHoldings();
         else if (h === 'alerts' && typeof openAlerts === 'function') openAlerts();
+        else if (/^analyze(\/[A-Za-z0-9]+)?$/.test(h) && typeof openAnalyze === 'function') openAnalyze(h.split('/')[1]);
         else if (['markets','breakout','history','wallet','settings','overview'].indexOf(h) >= 0) showView(h);
       } catch (e) { console.error(e); }
       history.replaceState(null, '', location.pathname + location.search);

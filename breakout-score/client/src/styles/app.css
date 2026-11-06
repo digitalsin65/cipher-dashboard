@@ -360,3 +360,6 @@ h1 {
   .tip:active::after, .tip:focus-within::after { opacity: 1; transform: translateY(0); }
   .coin:active, .coin:focus-within { z-index: 30; }
 }
+
+.coin__analyze { display: inline-block; margin: 0 0 10px; font-size: 12px; color: #00f5c4; text-decoration: none; }
+.coin__analyze:hover { text-decoration: underline; }

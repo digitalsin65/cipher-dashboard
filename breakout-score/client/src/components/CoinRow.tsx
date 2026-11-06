@@ -54,6 +54,9 @@ export function CoinRow({ coin, rank }: Props) {
       </button>
       {open && (
         <div className="coin__body">
+          <a className="coin__analyze" href={`/#analyze/${coin.baseAsset}`} target="_top">
+            Analyze {coin.baseAsset} →
+          </a>
           <SignalBreakdown signals={coin.signals} />
         </div>
       )}
