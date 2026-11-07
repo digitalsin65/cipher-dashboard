@@ -933,6 +933,8 @@
   .an-box { background: var(--card, rgba(255,255,255,.03)); border: 1px solid var(--border, rgba(255,255,255,.08)); border-radius: 12px; padding: 18px; }
   .an-coin { font-size: 22px; font-weight: 700; }
   .an-coin small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .an-cg { display: inline-block; margin-top: 4px; font-size: 12px; color: var(--muted2, #aaa); text-decoration: none; border-bottom: 1px dotted rgba(128,128,128,.5); }
+  .an-cg:hover { color: var(--cyan); border-bottom-color: var(--cyan); }
   .an-price { font-size: 18px; margin-top: 6px; font-family: 'DM Mono', monospace; }
   .an-overall { display: flex; align-items: baseline; gap: 12px; margin-top: 16px; }
   .an-overall .num { font-size: 48px; font-weight: 800; font-family: 'DM Mono', monospace; }
@@ -4034,6 +4036,7 @@
     }).join('');
     document.getElementById('an-out').innerHTML =
       '<div class="an-top"><div class="an-box"><div class="an-coin">' + anEsc(d.name) + (d.name !== d.symbol ? '<small>' + anEsc(d.symbol) + '</small>' : '') + '</div>' +
+        (d.coingecko_url ? '<a class="an-cg" href="' + anEsc(d.coingecko_url) + '" target="_blank" rel="noopener">More info on CoinGecko ↗</a>' : '') +
       '<div class="an-price">' + anPrice(d.price) + '</div><div style="font-size:12px;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">' + anPct(d.change_7d, '7d') + anPct(d.change_30d, '30d') + '</div>' +
       (o == null ? '<div class="an-msg">No scores available for this coin.</div>' :
         '<div class="an-overall"><span class="num" style="color:' + anCol(o) + '">' + o + '</span><span style="color:var(--muted)">/ 100</span></div>' +

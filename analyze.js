@@ -202,6 +202,28 @@ module.exports = function mountAnalyze(app, { CMC_API_KEY, ALCHEMY_API_KEY }) {
     return { available: false, note: 'No free on-chain source for this coin' };
   }
 
+  // CoinGecko page link for a symbol. Symbols can collide, so pick the exact
+  // symbol match with the best market cap rank (preferring the CMC name).
+  const CG_FIXED = { BTC: 'bitcoin', ETH: 'ethereum', USDT: 'tether', BNB: 'binancecoin', SOL: 'solana', XRP: 'ripple', USDC: 'usd-coin', ADA: 'cardano', DOGE: 'dogecoin', TRX: 'tron', POL: 'polygon-ecosystem-token', DOT: 'polkadot', LINK: 'chainlink', AVAX: 'avalanche-2', LTC: 'litecoin', SHIB: 'shiba-inu' };
+  async function coingeckoUrl(sym, name) {
+    const fallback = 'https://www.coingecko.com/en/search?query=' + encodeURIComponent(sym);
+    if (CG_FIXED[sym]) return 'https://www.coingecko.com/en/coins/' + CG_FIXED[sym];
+    try {
+      const id = await cached('cg:' + sym + ':' + (name || ''), 24 * 60 * 60 * 1000, async () => {
+        const r = await fetch('https://api.coingecko.com/api/v3/search?query=' + encodeURIComponent(sym), { signal: AbortSignal.timeout(5000) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const m = (j.coins || []).filter(c => String(c.symbol).toUpperCase() === sym);
+        if (!m.length) return null;
+        const byName = name && m.find(c => String(c.name).toLowerCase() === String(name).toLowerCase());
+        if (byName) return byName.id;
+        m.sort((a, b) => (a.market_cap_rank || 1e9) - (b.market_cap_rank || 1e9));
+        return m[0].id;
+      });
+      return id ? 'https://www.coingecko.com/en/coins/' + id : fallback;
+    } catch (e) { cache.delete('cg:' + sym + ':' + (name || '')); return fallback; }
+  }
+
   const safe = async (fn, label) => { try { return await fn(); } catch (e) { console.warn('[analyze] ' + label + ':', e.message); return { available: false, note: label + ' source unavailable' }; } };
 
   app.get('/api/analyze/:symbol', async (req, res) => {
@@ -216,7 +238,9 @@ module.exports = function mountAnalyze(app, { CMC_API_KEY, ALCHEMY_API_KEY }) {
         const chain = await safe(() => onchain(sym, fund), 'On-chain');
         if (fund.metrics) delete fund.metrics.platform;
         const c = k ? k.map(x => x.c) : [];
-        return { symbol: sym, name: fund.metrics && fund.metrics.name || sym, price: k ? c[c.length - 1] : null, change_7d: k ? chg(c, 7) : null, change_30d: k ? chg(c, 30) : null,
+        const name = fund.metrics && fund.metrics.name || null;
+        const cgUrl = await coingeckoUrl(sym, name);
+        return { symbol: sym, name: fund.metrics && fund.metrics.name || sym, price: k ? c[c.length - 1] : null, change_7d: k ? chg(c, 7) : null, change_30d: k ? chg(c, 30) : null, coingecko_url: cgUrl,
           scores: { technical: tech, fundamental: fund, onchain: chain, sentiment: sent }, updated: new Date().toISOString() };
       });
       res.json({ ok: true, data: out });
