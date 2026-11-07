@@ -889,6 +889,11 @@
     .mk-search { width: 100%; font-size: 16px; min-height: 40px; }
     .mk-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
     .mk-table th, .mk-table td { padding: 10px 10px; }
+    /* Keep the # and Coin columns pinned while the table scrolls sideways */
+    .mk-pin th:nth-child(1), .mk-pin td:nth-child(1) { position: sticky; left: 0; z-index: 2; background: var(--card); width: 40px; min-width: 40px; max-width: 40px; padding-left: 8px; padding-right: 4px; box-sizing: border-box; }
+    .mk-pin th:nth-child(2), .mk-pin td:nth-child(2) { position: sticky; left: 40px; z-index: 2; background: var(--card); max-width: 128px; overflow: hidden; text-overflow: ellipsis; box-shadow: 6px 0 8px -6px rgba(0,0,0,.6); }
+    .mk-pin thead th:nth-child(-n+2) { z-index: 3; }
+    .mk-pin tbody tr:hover td:nth-child(-n+2) { background: var(--card2); }
     .wl-cards { gap: 10px; }
     .wl-card { min-width: calc(50% - 5px); padding: 12px 14px; }
     .wl-card .val { font-size: 20px; }
@@ -1116,7 +1121,7 @@
         <!-- ═══ CRYPTO VIEW (All Assets / DeFi / Layer1 / Stablecoins) ═══ -->
         <div id="view-fav" style="display:none">
           <div class="mk-sub" id="fav-status" style="margin:4px 0 12px">Star any coin in Markets to add it here.</div>
-          <table class="mk-table"><thead><tr><th></th><th>Coin</th><th>Price</th><th>24h</th><th>7d</th><th>7d chart</th><th>Market cap</th></tr></thead>
+          <table class="mk-table mk-pin"><thead><tr><th></th><th>Coin</th><th>Price</th><th>24h</th><th>7d</th><th>7d chart</th><th>Market cap</th></tr></thead>
           <tbody id="fav-body"></tbody></table>
         </div>
         <div id="view-crypto">
@@ -1626,7 +1631,7 @@
         </div>
         <input class="mk-search" id="mk-search" placeholder="Search coin or symbol" oninput="renderMarkets()">
       </div>
-      <table class="mk-table">
+      <table class="mk-table mk-pin">
         <thead><tr>
           <th onclick="sortMarkets('rank')">#</th>
           <th onclick="sortMarkets('name')">Coin</th>
@@ -1656,7 +1661,7 @@
         <div class="wl-card"><div class="lbl">Coins held</div><div class="val" id="wl-count">—</div></div>
         <div class="wl-card"><div class="lbl">NFTs in wallet</div><div class="val" id="wl-nfts">—</div></div>
       </div>
-      <table class="mk-table">
+      <table class="mk-table mk-pin">
         <thead><tr>
           <th>#</th><th>Coin</th><th>Amount held</th><th>Price</th><th>24h</th><th>Value</th><th>Share of portfolio</th>
         </tr></thead>
