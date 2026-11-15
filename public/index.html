@@ -966,6 +966,28 @@
     .an-overall .num { font-size: 40px; }
     .an-pick input { flex: 1; min-width: 0; }
   }
+  /* ── Paper Trading tab ── */
+  #view-paper { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
+  #view-paper.active { display: flex; }
+  .pt-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .pt-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .pt-card h3 { margin: 0 0 4px; font-family: 'Syne', sans-serif; font-size: 17px; color: var(--text); }
+  .pt-rule { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .pt-eq { font-size: 30px; font-weight: 800; font-family: 'DM Mono', monospace; margin-top: 12px; }
+  .pt-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; font-size: 12px; }
+  .pt-stats div { color: var(--muted); }
+  .pt-stats b { display: block; color: var(--text); font-family: 'DM Mono', monospace; font-size: 14px; margin-top: 2px; }
+  .pt-h { margin: 22px 0 8px; font-size: 13px; color: var(--muted2, #aaa); text-transform: uppercase; letter-spacing: .06em; }
+  .pt-seg { display: flex; gap: 6px; margin: 22px 0 0; flex-wrap: wrap; }
+  .pt-seg button { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted2, #aaa); cursor: pointer; font: inherit; font-size: 12px; }
+  .pt-seg button.on { background: rgba(0,245,196,.1); color: var(--cyan); border-color: rgba(0,245,196,.4); }
+  .pt-up { color: #22c55e; } .pt-down { color: #ef4444; }
+  .pt-tok a { color: var(--text); text-decoration: none; font-weight: 600; } .pt-tok a:hover { color: var(--cyan); }
+  .pt-tok small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+  .pt-empty { color: var(--muted); padding: 18px; text-align: center; font-size: 13px; }
+  .pt-reset { padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,.4); background: transparent; color: #ef4444; cursor: pointer; font: inherit; font-size: 12px; }
+  @media (max-width: 800px) { .pt-cards { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { #view-paper { padding: 66px 12px 80px; } .pt-stats { grid-template-columns: repeat(2, 1fr); } .pt-eq { font-size: 26px; } }
 </style>
 </head>
 <body>
@@ -1009,6 +1031,10 @@
       <a class="nav-item" href="#" id="nav-analyze" onclick="openAnalyze(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/><polygon points="12 7 17 12 12 17 7 12"/></svg>
         Analyze
+      </a>
+      <a class="nav-item" href="#" id="nav-paper" onclick="showView('paper'); return false;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 17l3-3 2 2 3-4"/></svg>
+        Paper Trading
       </a>
       <a class="nav-item" href="/nfts.html">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -1773,6 +1799,17 @@
       </div>
       <div id="an-out"><div class="an-msg">Pick a coin above.</div></div>
       <div class="an-disc">Rule-based score from public data, for comparing coins. Not financial advice.</div>
+    </div>
+
+    <div id="view-paper" aria-label="Paper Trading">
+      <div class="mk-head">
+        <div>
+          <h2>Paper Trading</h2>
+          <div class="mk-sub">Solana meme coins with fake money, live prices from DexScreener. No real trades.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center"><span class="mk-sub" id="pt-status"></span><button class="pt-reset" onclick="ptReset()">Reset</button></div>
+      </div>
+      <div id="pt-out"><div class="pt-empty">Loading…</div></div>
     </div>
 
     <div id="view-breakout" aria-label="Breakout Score">
@@ -3876,6 +3913,19 @@
     if (settings) settings.classList.toggle('active', name === 'settings');
     const analyze = document.getElementById('view-analyze');
     if (analyze) analyze.classList.toggle('active', name === 'analyze');
+    const paper = document.getElementById('view-paper');
+    if (paper) paper.classList.toggle('active', name === 'paper');
+    if (PT_TIMER) { clearInterval(PT_TIMER); PT_TIMER = null; }
+    if (name === 'paper') {
+      overview.classList.add('hidden');
+      breakout.classList.remove('active');
+      ['view-history', 'view-wallet'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
+      if (WL_TIMER) { clearInterval(WL_TIMER); WL_TIMER = null; }
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const np = document.getElementById('nav-paper'); if (np) np.classList.add('active');
+      ptLoad(); PT_TIMER = setInterval(ptLoad, 15000);
+      return;
+    }
     if (name === 'analyze') {
       overview.classList.add('hidden');
       breakout.classList.remove('active');
@@ -3964,6 +4014,61 @@
   loadOverviewNFTs();
 </script>
 <script>
+  // ─── Paper Trading tab ─────────────────────────────────────────────────────
+  let PT_TIMER = null, PT_DATA = null, PT_VIEW = 'open';
+  const ptEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ptCls = v => v > 0 ? 'pt-up' : v < 0 ? 'pt-down' : '';
+  const ptSign = v => (v > 0 ? '+' : v < 0 ? '−' : '');
+  function ptMoney(usd, signed) {
+    const f = v => Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sg = signed ? ptSign(usd) : '';
+    const us = sg + 'US$' + f(usd), au = AUD_RATE ? sg + 'A$' + f(usd * AUD_RATE) : '';
+    const first = audFirst() && au ? au : us, second = audFirst() && au ? us : au;
+    return first + (second ? '<div class="mk-aud">' + second + '</div>' : '');
+  }
+  const ptPct = v => v == null ? '—' : ptSign(v) + Math.abs(v).toFixed(1) + '%';
+  function ptPrice(p) { if (!p) return '$0'; if (p >= 1) return '$' + p.toFixed(4); const d = Math.max(2, -Math.floor(Math.log10(p)) + 3); return '$' + p.toFixed(Math.min(d, 12)); }
+  function ptAgo(t) { if (!t) return '—'; const m = Math.round((Date.now() - t) / 60000); if (m < 60) return m + 'm'; const h = Math.floor(m / 60); return h < 48 ? h + 'h ' + (m % 60) + 'm' : Math.floor(h / 24) + 'd'; }
+  async function ptLoad() {
+    try {
+      if (!AUD_RATE) await fetchFx();
+      const j = await (await fetch('/api/paper')).json();
+      if (!j.ok) throw new Error(j.error || 'No data');
+      PT_DATA = j; ptRender();
+    } catch (e) { document.getElementById('pt-out').innerHTML = '<div class="pt-empty">Could not load paper trading: ' + ptEsc(e.message) + '</div>'; }
+  }
+  function ptRender() {
+    const j = PT_DATA, st = j.strategies, keys = Object.keys(st);
+    document.getElementById('pt-status').textContent = (j.error ? 'Data error: ' + j.error + ' · ' : '') + (j.lastScan ? 'Last scan ' + ptAgo(j.lastScan) + ' ago' : 'Starting…') + ' · running ' + ptAgo(j.started);
+    const card = k => { const s = st[k]; return '<div class="pt-card"><h3>' + ptEsc(s.name) + '</h3><div class="pt-rule">' + ptEsc(s.rule) + '</div>' +
+      '<div class="pt-eq">' + ptMoney(s.equity) + '</div>' +
+      '<div class="' + ptCls(s.pnl) + '" style="font-weight:700;font-size:14px">' + ptPct(s.pnlPct) + ' (' + (ptSign(s.pnl) + 'US$' + Math.abs(s.pnl).toFixed(2)) + (AUD_RATE ? ' · ' + ptSign(s.pnl) + 'A$' + Math.abs(s.pnl * AUD_RATE).toFixed(2) : '') + ') since start</div>' +
+      '<div class="pt-stats"><div>Cash<b>US$' + s.cash.toFixed(0) + '</b></div><div>Open<b>' + s.open.length + '</b></div><div>Closed<b>' + s.trades + '</b></div><div>Win rate<b>' + (s.winRate == null ? '—' : s.winRate.toFixed(0) + '%') + '</b></div></div>' +
+      '<div class="pt-stats" style="grid-template-columns:1fr 1fr"><div>Best<b class="' + ptCls(s.best && s.best.pnlPct) + '">' + (s.best ? ptEsc(s.best.symbol) + ' ' + ptPct(s.best.pnlPct) : '—') + '</b></div><div>Worst<b class="' + ptCls(s.worst && s.worst.pnlPct) + '">' + (s.worst ? ptEsc(s.worst.symbol) + ' ' + ptPct(s.worst.pnlPct) : '—') + '</b></div></div></div>'; };
+    const tok = t => '<td class="pt-tok"><a href="' + ptEsc(t.url) + '" target="_blank" rel="noopener"' + (t.safety ? ' title="At buy: top 10 hold ' + t.safety.top10 + '%, biggest wallet ' + t.safety.oneHolder + '%, insiders ' + t.safety.insider + '%, developer ' + t.safety.creator + '%, ' + t.safety.holders + ' holders"' : '') + '>' + ptEsc(t.symbol) + '</a><small>' + ptEsc((t.name || t.token || '').slice(0, 22)) + '</small></td>';
+    const openRows = keys.flatMap(k => st[k].open.map(t => ({ ...t, strat: st[k].name }))).sort((a, b) => b.openedAt - a.openedAt);
+    const closedRows = keys.flatMap(k => st[k].closed.map(t => ({ ...t, strat: st[k].name }))).sort((a, b) => b.exitAt - a.exitAt).slice(0, 100);
+    let table;
+    if (PT_VIEW === 'open') table = openRows.length ? '<table class="mk-table mk-pin"><thead><tr><th>#</th><th>Coin</th><th>Strategy</th><th>Bought at</th><th>Now</th><th>P/L</th><th>Value</th><th>Held</th></tr></thead><tbody>' +
+      openRows.map((t, i) => '<tr><td>' + (i + 1) + '</td>' + tok(t) + '<td>' + ptEsc(t.strat) + '</td><td>' + ptPrice(t.entryPrice) + '</td><td>' + ptPrice(t.lastPrice) + '</td><td class="' + ptCls(t.pnlPct) + '"><b>' + ptPct(t.pnlPct) + '</b></td><td>' + ptMoney(t.value) + '</td><td>' + ptAgo(t.openedAt) + '</td></tr>').join('') + '</tbody></table>'
+      : '<div class="pt-empty">No open trades yet. It checks for new coins every minute.</div>';
+    else if (PT_VIEW === 'skipped') table = (j.skipped || []).length ? '<table class="mk-table mk-pin"><thead><tr><th>#</th><th>Coin</th><th>Strategy</th><th>Why skipped</th><th>When</th></tr></thead><tbody>' +
+      j.skipped.map((t, i) => '<tr><td>' + (i + 1) + '</td>' + tok(t) + '<td>' + ptEsc(st[t.strat] ? st[t.strat].name : t.strat) + '</td><td style="white-space:normal;min-width:220px">' + t.reasons.map(ptEsc).join('<br>') + '</td><td>' + ptAgo(t.at) + ' ago</td></tr>').join('') + '</tbody></table>'
+      : '<div class="pt-empty">No coins have failed the safety check yet.</div>';
+    else table = closedRows.length ? '<table class="mk-table mk-pin"><thead><tr><th>#</th><th>Coin</th><th>Strategy</th><th>Bought</th><th>Sold</th><th>P/L</th><th>Why sold</th><th>Held</th></tr></thead><tbody>' +
+      closedRows.map((t, i) => '<tr><td>' + (i + 1) + '</td>' + tok(t) + '<td>' + ptEsc(t.strat) + '</td><td>' + ptPrice(t.entryPrice) + '</td><td>' + ptPrice(t.exitPrice) + '</td><td class="' + ptCls(t.pnl) + '"><b>' + ptPct(t.pnlPct) + '</b>' + '<div class="mk-aud">' + ptSign(t.pnl) + 'US$' + Math.abs(t.pnl).toFixed(2) + '</div></td><td>' + ptEsc(t.reason) + '</td><td>' + ptAgo(t.openedAt - (t.exitAt - Date.now())) + '</td></tr>').join('') + '</tbody></table>'
+      : '<div class="pt-empty">No closed trades yet.</div>';
+    const s = j.settings;
+    document.getElementById('pt-out').innerHTML = '<div class="pt-cards">' + keys.map(card).join('') + '</div>' +
+      '<div class="pt-seg"><button class="' + (PT_VIEW === 'open' ? 'on' : '') + '" onclick="PT_VIEW=\'open\';ptRender()">Open trades (' + openRows.length + ')</button><button class="' + (PT_VIEW === 'closed' ? 'on' : '') + '" onclick="PT_VIEW=\'closed\';ptRender()">Closed trades (' + keys.reduce((n, k) => n + st[k].trades, 0) + ')</button><button class="' + (PT_VIEW === 'skipped' ? 'on' : '') + '" onclick="PT_VIEW=\'skipped\';ptRender()">Failed safety check (' + (j.skippedCount || 0) + ')</button></div>' +
+      '<div style="margin-top:10px">' + table + '</div>' +
+      '<div class="an-disc">Each strategy starts with US$' + s.startBalance + ' of fake money and buys US$' + s.positionUsd + ' per trade, up to ' + s.maxOpen + ' at once. It sells at +' + s.takeProfitPct + '% or ' + s.stopLossPct + '%, if liquidity drops 80%, or after ' + s.maxHoldH + ' h. A ' + s.costPct + '% fee and slippage cost is taken on each buy and sell. Before any buy, a RugCheck safety check must pass: the developer can\'t mint more or freeze wallets, the top 10 wallets hold ' + j.safety.maxTop10Pct + '% or less, no single wallet holds over ' + j.safety.maxOneHolderPct + '%, insider or bundled wallets hold ' + j.safety.maxInsiderPct + '% or less, the developer holds ' + j.safety.maxCreatorPct + '% or less, there are at least ' + j.safety.minHolders + ' holders, and there are no danger flags. Pools and locked tokens don\'t count as holders. Prices are checked every 20 seconds, so real fills could differ. Not financial advice.</div>';
+  }
+  async function ptReset() {
+    if (!confirm('Reset paper trading? This wipes all fake trades and starts both strategies again at US$1,000.')) return;
+    await fetch('/api/paper/reset', { method: 'POST' }); setTimeout(ptLoad, 1500);
+  }
+
   // ─── Analyze tab ─────────────────────────────────────────────────────────
   const AN_KEYS = [['technical', 'Technical'], ['fundamental', 'Fundamental'], ['onchain', 'On-Chain'], ['sentiment', 'Sentiment']];
   const AN_DEFAULT_W = { technical: 30, fundamental: 30, onchain: 15, sentiment: 25 };
@@ -4081,7 +4186,7 @@
         if (h === 'portfolio' && typeof openHoldings === 'function') openHoldings();
         else if (h === 'alerts' && typeof openAlerts === 'function') openAlerts();
         else if (/^analyze(\/[A-Za-z0-9]+)?$/.test(h) && typeof openAnalyze === 'function') openAnalyze(h.split('/')[1]);
-        else if (['markets','breakout','history','wallet','settings','overview'].indexOf(h) >= 0) showView(h);
+        else if (['markets','breakout','history','wallet','settings','overview','paper'].indexOf(h) >= 0) showView(h);
       } catch (e) { console.error(e); }
       history.replaceState(null, '', location.pathname + location.search);
     });

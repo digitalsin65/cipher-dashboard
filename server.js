@@ -195,6 +195,9 @@ app.put('/api/alerts', (req, res) => {
 // ---- Coin Analyze tab: /api/analyze/:symbol and /api/analyze-weights ----
 require('./analyze')(app, { CMC_API_KEY, ALCHEMY_API_KEY });
 
+// ---- Paper Trading tab: simulated Solana meme coin trades with fake money ----
+require('./papertrade')(app);
+
 // Serve the dashboard HTML + built Breakout UI at /breakout/
 app.use(express.static(path.join(__dirname, 'public')));
 
