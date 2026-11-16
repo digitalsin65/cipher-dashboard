@@ -1,5 +1,5 @@
 // Paper trading: simulated Solana meme coin trades with fake money, using live DexScreener data.
-// No real wallet, no real orders. Two strategies run side by side, each with its own fake balance.
+// No real wallet, no real orders. Three strategies run side by side, each with its own fake balance.
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -11,6 +11,8 @@ const POSITION_USD = 100;        // US$ per trade
 const MAX_OPEN = 8;              // per strategy
 const TAKE_PROFIT = 0.50;        // +50%
 const STOP_LOSS = -0.25;         // -25%
+const RECOUP_AT = 1.00;         // recoup strategy: sell half at +100% to get the stake back
+const RUNNER_TP = 2.00;         // recoup strategy: sell the rest at +200%
 const MAX_HOLD_H = 48;           // close stale trades so fake money isn't stuck forever
 const COST = 0.01;               // 1% simulated swap fee + slippage on each side
 // popular Solana meme searches, so already-trending coins get found too (not just new listings)
@@ -73,6 +75,12 @@ const STRATS = {
         (p.volume?.h1 || 0) >= 20000 && t5.buys > t5.sells && t1.buys > t1.sells * 1.2 && ch1 > 0 && ch1 < 300;
     },
   },
+  recoup: {
+    name: 'Recoup and run',
+    rule: 'Buys the same coins as Fresh launches, but sells differently: half at +100% to get the stake back, then the rest at +200%. Before that it stops out at -25%; after it, the rest sells if the price falls back to the buy price.',
+    exit: 'recoup',
+    pick(p, ageH) { return STRATS.fresh.pick(p, ageH); },
+  },
   trending: {
     name: 'Trending coins',
     rule: 'Pair over 24 h old, liquidity at least US$50k, 24 h volume at least US$250k, up 5% to 60% in the last hour and up over the last 6 h, more buys than sells in the last hour.',
@@ -90,7 +98,14 @@ function blank() {
   for (const k of Object.keys(STRATS)) s.strategies[k] = { cash: START_BALANCE, open: [], closed: [] };
   return s;
 }
-function load() { try { const s = JSON.parse(fs.readFileSync(FILE, 'utf8')); return s && s.strategies ? s : blank(); } catch (e) { return blank(); } }
+function load() {
+  try {
+    const s = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    if (!s || !s.strategies) return blank();
+    for (const k of Object.keys(STRATS)) if (!s.strategies[k]) s.strategies[k] = { cash: START_BALANCE, open: [], closed: [], startedAt: Date.now() };
+    return s;
+  } catch (e) { return blank(); }
+}
 function save() { try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE + '.tmp', JSON.stringify(S)); fs.renameSync(FILE + '.tmp', FILE); } catch (e) { console.warn('[paper] save failed', e.message); } }
 
 let S = load();
@@ -121,7 +136,7 @@ function closeTrade(st, t, price, reason) {
   const gross = t.qty * price;
   const proceeds = gross * (1 - COST);
   st.cash += proceeds;
-  const pnl = proceeds - t.cost;
+  const pnl = proceeds + (t.partialProceeds || 0) - t.cost;
   st.open = st.open.filter(x => x !== t);
   st.closed.unshift({ ...t, exitPrice: price, exitAt: Date.now(), proceeds, pnl, pnlPct: pnl / t.cost * 100, reason });
   if (st.closed.length > 500) st.closed.length = 500;
@@ -146,12 +161,13 @@ async function scan() {
     // keep tokens seen in the last 48 h as candidates (so trending ones get re-checked), cap the list
     let addrs = Object.entries(S.seen).filter(([, t]) => now - t < 48 * 3600e3).sort((a, b) => b[1] - a[1]).slice(0, 450).map(([a]) => a);
     S.seen = Object.fromEntries(addrs.map(a => [a, S.seen[a]]));
-    const held = new Set();
-    for (const st of Object.values(S.strategies)) { st.open.forEach(t => held.add(t.token)); st.closed.forEach(t => held.add(t.token)); }
-    addrs = addrs.filter(a => !held.has(a)); // never re-buy a token either strategy already traded
+    // each strategy never re-buys a token it already traded (strategies can hold the same coin as each other)
+    const heldBy = {};
+    for (const [k, st] of Object.entries(S.strategies)) { heldBy[k] = new Set(); st.open.forEach(t => heldBy[k].add(t.token)); st.closed.forEach(t => heldBy[k].add(t.token)); }
+    addrs = addrs.filter(a => Object.keys(STRATS).some(k => !heldBy[k].has(a)));
     const pairs = await pairsFor(addrs);
     for (const [key, def] of Object.entries(STRATS)) {
-      const st = S.strategies[key];
+      const st = S.strategies[key], held = heldBy[key];
       const cands = Object.values(pairs).filter(p => {
         const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 3600e3 : 0;
         return +p.priceUsd > 0 && def.pick(p, ageH);
@@ -203,6 +219,19 @@ async function checkPrices() {
       const price = +p.priceUsd, liq = p.liquidity?.usd || 0;
       t.lastPrice = price; t.lastLiq = liq; t.peak = Math.max(t.peak || price, price); t.lastAt = now;
       const ch = price / t.entryPrice - 1;
+      if (STRATS[k] && STRATS[k].exit === 'recoup') {
+        if (!t.recouped && ch >= RECOUP_AT) {
+          // sell half to get the stake back, let the other half run
+          const half = t.qty / 2, proceeds = half * price * (1 - COST);
+          st.cash += proceeds; t.qty -= half; t.partialProceeds = (t.partialProceeds || 0) + proceeds;
+          t.recouped = true; t.recoupedAt = now; t.recoupPrice = price;
+        } else if (t.recouped && ch >= RUNNER_TP) closeTrade(st, t, price, 'Rest sold at +200%');
+        else if (t.recouped && ch <= 0) closeTrade(st, t, price, 'Rest sold at buy price');
+        else if (!t.recouped && ch <= STOP_LOSS) closeTrade(st, t, price, 'Stop loss');
+        else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
+        else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
+        continue;
+      }
       if (ch >= TAKE_PROFIT) closeTrade(st, t, price, 'Take profit');
       else if (ch <= STOP_LOSS) closeTrade(st, t, price, 'Stop loss');
       else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
@@ -220,12 +249,13 @@ function summary() {
     const realised = st.closed.reduce((s, t) => s + t.pnl, 0);
     const equity = st.cash + openVal;
     out[k] = {
-      name: STRATS[k].name, rule: STRATS[k].rule, start: START_BALANCE, cash: st.cash, openValue: openVal, equity,
+      name: (STRATS[k] || {}).name || k, rule: (STRATS[k] || {}).rule || '', startedAt: st.startedAt || S.started, start: START_BALANCE, cash: st.cash, openValue: openVal, equity,
       pnl: equity - START_BALANCE, pnlPct: (equity - START_BALANCE) / START_BALANCE * 100, realised,
       trades: st.closed.length, wins, winRate: st.closed.length ? wins / st.closed.length * 100 : null,
       best: st.closed.reduce((b, t) => (!b || t.pnlPct > b.pnlPct ? t : b), null),
       worst: st.closed.reduce((b, t) => (!b || t.pnlPct < b.pnlPct ? t : b), null),
       open: st.open.map(t => ({ ...t, value: t.qty * (t.lastPrice || t.entryPrice) * (1 - COST), pnlPct: ((t.lastPrice || t.entryPrice) / t.entryPrice - 1) * 100 })),
+      recouped: st.closed.filter(t => t.recouped).length + st.open.filter(t => t.recouped).length,
       closed: st.closed.slice(0, 100),
     };
   }
@@ -239,8 +269,9 @@ module.exports = function mountPaper(app) {
   }
   app.get('/api/paper', (req, res) => {
     res.json({ ok: true, started: S.started, safety: SAFETY, skipped: (S.skipped || []).slice(0, 50), skippedCount: S.skippedCount || 0, lastScan, lastPrice, error: lastError,
-      settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
+      settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
       strategies: summary() });
   });
   app.post('/api/paper/reset', (req, res) => { S = blank(); save(); setTimeout(scan, 500); res.json({ ok: true }); });
 };
+module.exports._checkPrices = checkPrices; // used by tests
