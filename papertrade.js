@@ -63,6 +63,32 @@ async function safetyCheck(mint) {
   return out;
 }
 
+// ---------- Socials check (from DexScreener's token info, free) ----------
+// A coin must list its own X account or X community, plus a website or Telegram.
+// A link to someone else's post, a trending page or a search doesn't count as its own account.
+function xAccount(url) {
+  try {
+    const u = new URL(url), h = u.hostname.replace(/^www\./, '');
+    if (!['x.com', 'twitter.com', 'mobile.twitter.com'].includes(h)) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'i' && parts[1] === 'communities' && parts[2]) return url;
+    if (parts.length !== 1) return null; // /user/status/..., /i/trending/..., /search, /hashtag/...
+    if (['i', 'search', 'hashtag', 'home', 'explore', 'intent', 'share'].includes(parts[0].toLowerCase())) return null;
+    return url;
+  } catch (e) { return null; }
+}
+function socialsCheck(p) {
+  const socials = p.info?.socials || [], sites = p.info?.websites || [];
+  const x = socials.map(s => (s.type === 'twitter' || /(^|\.)(x|twitter)\.com\//i.test(s.url || '')) ? xAccount(s.url) : null).find(Boolean) || null;
+  const anyX = socials.some(s => s.type === 'twitter' || /(x|twitter)\.com\//i.test(s.url || ''));
+  const tg = socials.find(s => s.type === 'telegram' || /t\.me\//i.test(s.url || '')) || sites.find(w => /t\.me\//i.test(w.url || ''));
+  const web = sites.find(w => w.url && !/t\.me\/|(x|twitter)\.com\//i.test(w.url));
+  const reasons = [];
+  if (!x) reasons.push(anyX ? 'X link is a post or page, not the coin\'s own account' : 'No X account listed');
+  if (!web && !tg) reasons.push('No website or Telegram listed');
+  return { ok: reasons.length === 0, reasons, info: { x, telegram: tg?.url || null, website: web?.url || null } };
+}
+
 const STRATS = {
   fresh: {
     name: 'Fresh launches',
@@ -175,7 +201,8 @@ async function scan() {
       for (const p of cands) {
         if (st.open.length >= MAX_OPEN || st.cash < POSITION_USD) break;
         if (held.has(p.baseToken.address)) continue;
-        const safe = await safetyCheck(p.baseToken.address);
+        const soc = socialsCheck(p);
+        const safe = soc.ok ? await safetyCheck(p.baseToken.address) : { ok: false, reasons: soc.reasons, info: null };
         if (!safe.ok) {
           S.skipped = S.skipped || [];
           if (!S.skipped.some(x => x.token === p.baseToken.address && Date.now() - x.at < 6 * 3600e3)) {
@@ -193,7 +220,7 @@ async function scan() {
           symbol: p.baseToken.symbol, name: p.baseToken.name, pair: p.pairAddress, dex: p.dexId, url: p.url,
           entryPrice: price, qty, cost: POSITION_USD, openedAt: now,
           entry: { liq: p.liquidity?.usd || 0, mc: p.marketCap || p.fdv || 0, vol1h: p.volume?.h1 || 0, ch1h: p.priceChange?.h1 ?? null },
-          lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info,
+          lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info, socials: soc.info,
         });
         held.add(p.baseToken.address);
       }
@@ -275,3 +302,4 @@ module.exports = function mountPaper(app) {
   app.post('/api/paper/reset', (req, res) => { S = blank(); save(); setTimeout(scan, 500); res.json({ ok: true }); });
 };
 module.exports._checkPrices = checkPrices; // used by tests
+module.exports._socialsCheck = socialsCheck; // used by tests
