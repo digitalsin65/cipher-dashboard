@@ -141,9 +141,26 @@ function load() {
     return s;
   } catch (e) { return blank(); }
 }
-function save() { try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE + '.tmp', JSON.stringify(S)); fs.renameSync(FILE + '.tmp', FILE); } catch (e) { console.warn('[paper] save failed', e.message); } }
+let lastWriteMs = 0; // mtime of the file as we last wrote or read it
+function save() { try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE + '.tmp', JSON.stringify(S)); fs.renameSync(FILE + '.tmp', FILE); lastWriteMs = fs.statSync(FILE).mtimeMs; } catch (e) { console.warn('[paper] save failed', e.message); } }
+// The host can run more than one copy of the server. Each copy re-reads the file when another copy
+// changed it (for example a Reset), so an old copy can't write stale numbers back over it.
+function syncFromDisk() {
+  try { const m = fs.statSync(FILE).mtimeMs; if (m > lastWriteMs) { S = load(); lastWriteMs = m; } } catch (e) {}
+}
+// Only one copy trades at a time; the others just read. The lock goes stale after 90 s if that copy dies.
+const LOCK = FILE + '.lock', ME = process.pid + '-' + Math.random().toString(36).slice(2);
+function isLeader() {
+  try {
+    let cur = null, age = Infinity;
+    try { cur = fs.readFileSync(LOCK, 'utf8').trim(); age = Date.now() - fs.statSync(LOCK).mtimeMs; } catch (e) {}
+    if (cur === ME || !cur || age > 90e3) { fs.mkdirSync(path.dirname(LOCK), { recursive: true }); fs.writeFileSync(LOCK, ME); return fs.readFileSync(LOCK, 'utf8').trim() === ME; }
+    return false;
+  } catch (e) { return true; }
+}
 
 let S = load();
+try { lastWriteMs = fs.statSync(FILE).mtimeMs; } catch (e) {}
 let lastScan = null, lastPrice = null, lastError = null, scanning = false;
 
 async function getJson(url) {
@@ -178,7 +195,10 @@ function closeTrade(st, t, price, reason) {
 }
 
 async function scan() {
-  if (scanning) return; scanning = true;
+  if (scanning) return;
+  syncFromDisk();
+  if (!isLeader()) return;
+  scanning = true;
   try {
     const lists = await Promise.allSettled([
       getJson(DS + '/token-profiles/latest/v1'),
@@ -235,12 +255,14 @@ async function scan() {
         held.add(p.baseToken.address);
       }
     }
-    lastScan = now; lastError = null; save();
+    lastScan = now; S.lastScan = now; lastError = null; save();
   } catch (e) { lastError = e.message; console.warn('[paper] scan failed', e.message); }
   finally { scanning = false; }
 }
 
 async function checkPrices() {
+  syncFromDisk();
+  if (!isLeader()) return;
   const open = Object.entries(S.strategies).flatMap(([k, st]) => st.open.map(t => [k, t]));
   if (!open.length) return;
   try {
@@ -274,7 +296,7 @@ async function checkPrices() {
       else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
       else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
     }
-    lastPrice = now; save();
+    lastPrice = now; S.lastPrice = now; save();
   } catch (e) { lastError = e.message; console.warn('[paper] price check failed', e.message); }
 }
 
@@ -305,7 +327,8 @@ module.exports = function mountPaper(app) {
     setTimeout(scan, 3000);
   }
   app.get('/api/paper', (req, res) => {
-    res.json({ ok: true, started: S.started, safety: SAFETY, skipped: (S.skipped || []).slice(0, 50), skippedCount: S.skippedCount || 0, lastScan, lastPrice, error: lastError,
+    syncFromDisk();
+    res.json({ ok: true, started: S.started, safety: SAFETY, skipped: (S.skipped || []).slice(0, 50), skippedCount: S.skippedCount || 0, lastScan: lastScan || S.lastScan || null, lastPrice: lastPrice || S.lastPrice || null, error: lastError,
       settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
       strategies: summary() });
   });
