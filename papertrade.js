@@ -92,13 +92,21 @@ function socialsCheck(p) {
 const STRATS = {
   fresh: {
     name: 'Fresh launches',
-    rule: 'Pair 15 min to 6 h old, liquidity at least US$10k, market cap US$20k to US$2M, 1 h volume at least US$20k, more buys than sells in the last 5 min and 1 h, up in the last hour but not more than 300%.',
+    rule: 'Stricter rules since 18 Nov: pair 1 h to 24 h old (survived its first hour), liquidity at least US$20k and at least 8% of market cap, market cap US$50k to US$5M, 1 h volume at least US$25k from at least 150 trades, more buys than sells in the last 1 h, up in the last hour but not more than 100%, and up over the last 6 h. Also needs at least 300 holders with the top 10 wallets holding 25% or less.',
     pick(p, ageH) {
       const liq = p.liquidity?.usd || 0, mc = p.marketCap || p.fdv || 0;
-      const t5 = p.txns?.m5 || {}, t1 = p.txns?.h1 || {};
-      const ch1 = p.priceChange?.h1 ?? 0;
-      return ageH >= 0.25 && ageH <= 6 && liq >= 10000 && mc >= 20000 && mc <= 2e6 &&
-        (p.volume?.h1 || 0) >= 20000 && t5.buys > t5.sells && t1.buys > t1.sells * 1.2 && ch1 > 0 && ch1 < 300;
+      const t1 = p.txns?.h1 || {};
+      const ch1 = p.priceChange?.h1 ?? 0, ch6 = p.priceChange?.h6 ?? 0;
+      return ageH >= 1 && ageH <= 24 && liq >= 20000 && mc >= 50000 && mc <= 5e6 && liq >= mc * 0.08 &&
+        (p.volume?.h1 || 0) >= 25000 && ((t1.buys || 0) + (t1.sells || 0)) >= 150 &&
+        t1.buys > t1.sells && ch1 > 0 && ch1 <= 100 && ch6 > 0;
+    },
+    // extra checks on top of the shared RugCheck rules
+    extra(info) {
+      const r = [];
+      if (info && info.holders < 300) r.push('Only ' + info.holders + ' holders (fresh launches need 300)');
+      if (info && info.top10 > 25) r.push('Top 10 wallets hold ' + info.top10.toFixed(0) + '% (fresh launches allow 25%)');
+      return r;
     },
   },
   recoup: {
@@ -106,6 +114,7 @@ const STRATS = {
     rule: 'Buys the same coins as Fresh launches, but sells differently: half at +100% to get the stake back, then the rest at +200%. Before that it stops out at -25%; after it, the rest sells if the price falls back to the buy price.',
     exit: 'recoup',
     pick(p, ageH) { return STRATS.fresh.pick(p, ageH); },
+    extra(info) { return STRATS.fresh.extra(info); },
   },
   trending: {
     name: 'Trending coins',
@@ -202,7 +211,8 @@ async function scan() {
         if (st.open.length >= MAX_OPEN || st.cash < POSITION_USD) break;
         if (held.has(p.baseToken.address)) continue;
         const soc = socialsCheck(p);
-        const safe = soc.ok ? await safetyCheck(p.baseToken.address) : { ok: false, reasons: soc.reasons, info: null };
+        let safe = soc.ok ? await safetyCheck(p.baseToken.address) : { ok: false, reasons: soc.reasons, info: null };
+        if (safe.ok && def.extra) { const r = def.extra(safe.info); if (r.length) safe = { ...safe, ok: false, reasons: r }; }
         if (!safe.ok) {
           S.skipped = S.skipped || [];
           if (!S.skipped.some(x => x.token === p.baseToken.address && Date.now() - x.at < 6 * 3600e3)) {
