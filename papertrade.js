@@ -1,8 +1,9 @@
 // Paper trading: simulated Solana meme coin trades with fake money, using live DexScreener data.
-// No real wallet, no real orders. Three strategies run side by side, each with its own fake balance.
+// No real wallet, no real orders. Four strategies run side by side, each with its own fake balance.
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const ind = require('./indicators');
 
 const FILE = process.env.PAPER_FILE || path.join(os.homedir(), 'cipher-data', 'papertrade.json');
 const DS = 'https://api.dexscreener.com';
@@ -89,6 +90,80 @@ function socialsCheck(p) {
   return { ok: reasons.length === 0, reasons, info: { x, telegram: tg?.url || null, website: web?.url || null } };
 }
 
+// ---------- Chart check (GeckoTerminal candles, free, no key) ----------
+// DexScreener has no candles, so 5 min and 15 min candles come from GeckoTerminal for the same pool.
+// GeckoTerminal's free limit is small and shared per IP (their docs say about 10 calls a minute, sometimes
+// less), so calls are spaced out, capped per scan, cached, and paused with growing back-off after a 429.
+const GT = 'https://api.geckoterminal.com/api/v2';
+const GT_NET = { solana: 'solana', ethereum: 'eth', bsc: 'bsc', base: 'base', arbitrum: 'arbitrum', polygon: 'polygon_pos', avalanche: 'avax', optimism: 'optimism' };
+const GT_GAP_MS = 8000;       // at least 8 s between calls (at most about 7 a minute)
+const GT_MAX_PER_SCAN = 6;    // candle requests per scan (scans run every minute); coins past this wait for the next scan
+// Entry rules per timeframe. The 5 min chart times the entry (RSI turning up, volume picking up);
+// the 15 min chart confirms the bigger trend (MACD above signal and still widening).
+const CHART = {
+  minCandles: 40, rsiMin: 50, rsiMax: 70,
+  5: { rsiRising: true, histRising: false, minVol: 1.2 },
+  15: { rsiRising: false, histRising: true, minVol: null },
+};
+const candleCache = new Map(); // network:pool:minutes -> { at, ttl, candles } or { at, ttl, err }
+let gtNext = 0, gtBackoffUntil = 0, gtBackoffMs = 0, gtUsed = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Closed candles, oldest first: [time, open, high, low, close, volumeUsd]. Returns null if this scan's budget is used up.
+async function gtCandles(net, pool, mins) {
+  const key = net + ':' + pool + ':' + mins, c = candleCache.get(key);
+  if (c && Date.now() - c.at < c.ttl) { if (c.err) throw new Error(c.err); return c.candles; }
+  if (Date.now() < gtBackoffUntil) throw new Error('chart data provider is rate limiting us, will retry shortly');
+  if (gtUsed >= GT_MAX_PER_SCAN) return null;
+  gtUsed++;
+  const wait = gtNext - Date.now(); if (wait > 0) await sleep(wait);
+  gtNext = Date.now() + GT_GAP_MS;
+  let r;
+  try { r = await fetch(GT + '/networks/' + net + '/pools/' + pool + '/ohlcv/minute?aggregate=' + mins + '&limit=100', { signal: AbortSignal.timeout(12000), headers: { accept: 'application/json' } }); }
+  catch (e) { candleCache.set(key, { at: Date.now(), ttl: 2 * 60e3, err: 'chart data could not be loaded (' + e.message + ')' }); throw new Error('chart data could not be loaded (' + e.message + ')'); }
+  if (r.status === 429) { gtBackoffMs = Math.min(gtBackoffMs ? gtBackoffMs * 2 : 60e3, 10 * 60e3); gtBackoffUntil = Date.now() + gtBackoffMs; console.warn('[paper] GeckoTerminal rate limit, pausing chart checks for ' + gtBackoffMs / 1000 + ' s'); throw new Error('chart data provider is rate limiting us, will retry shortly'); }
+  if (r.status === 404) { candleCache.set(key, { at: Date.now(), ttl: 30 * 60e3, err: 'no chart data for this pool' }); throw new Error('no chart data for this pool'); }
+  if (!r.ok) { candleCache.set(key, { at: Date.now(), ttl: 2 * 60e3, err: 'chart data could not be loaded (HTTP ' + r.status + ')' }); throw new Error('chart data could not be loaded (HTTP ' + r.status + ')'); }
+  gtBackoffMs = 0;
+  const d = await r.json();
+  const nowS = Date.now() / 1000;
+  const list = (d?.data?.attributes?.ohlcv_list || []).filter(x => Array.isArray(x) && x.length >= 6 && x[0] + mins * 60 <= nowS) // drop the candle still forming
+    .map(x => x.map(Number)).sort((a, b) => a[0] - b[0]);
+  candleCache.set(key, { at: Date.now(), ttl: (mins <= 5 ? 4 : 10) * 60e3, candles: list });
+  return list;
+}
+// Momentum entry on one timeframe. Returns { info, reasons }.
+function chartRules(candles, mins) {
+  const tf = mins + ' min chart', info = ind.summarise(candles), r = [];
+  const newest = candles.length ? candles[candles.length - 1][0] : 0;
+  if (candles.length < CHART.minCandles) { r.push('Not enough ' + tf + ' history (' + candles.length + ' candles, needs ' + CHART.minCandles + ')'); return { info, reasons: r }; }
+  if (Date.now() / 1000 - newest > mins * 60 * 4) { r.push('No recent trades on the ' + tf); return { info, reasons: r }; }
+  const f = (v, d = 0) => (v == null ? '?' : v.toFixed(d)), cfg = CHART[mins] || CHART[5];
+  if (info.rsi == null || info.rsi < CHART.rsiMin) r.push('RSI ' + f(info.rsi) + ' on ' + tf + ': momentum too weak (needs ' + CHART.rsiMin + ' to ' + CHART.rsiMax + ')');
+  else if (info.rsi > CHART.rsiMax) r.push('RSI ' + f(info.rsi) + ' on ' + tf + ': overbought (needs ' + CHART.rsiMin + ' to ' + CHART.rsiMax + ')');
+  else if (cfg.rsiRising && info.rsiPrev != null && info.rsi <= info.rsiPrev) r.push('RSI falling on ' + tf + ' (' + f(info.rsiPrev) + ' to ' + f(info.rsi) + ')');
+  if (info.macd == null || info.signal == null || info.macd <= info.signal) r.push('MACD below its signal line on ' + tf);
+  else if (cfg.histRising && info.histPrev != null && info.hist <= info.histPrev) r.push('MACD momentum fading on ' + tf + ' (histogram shrinking)');
+  if (cfg.minVol != null && (info.volRatio == null || info.volRatio < cfg.minVol)) r.push('Volume on ' + tf + ' is ' + f(info.volRatio, 1) + 'x normal (needs ' + cfg.minVol + 'x)');
+  return { info, reasons: r };
+}
+// 5 min first; 15 min is only fetched if 5 min passes, to save calls.
+async function chartCheck(p) {
+  const net = GT_NET[p.chainId];
+  if (!net) return { ok: false, reasons: ['No chart data for the ' + p.chainId + ' network'], info: null };
+  try {
+    const c5 = await gtCandles(net, p.pairAddress, 5);
+    if (!c5) return { deferred: true };
+    const a = chartRules(c5, 5);
+    if (a.reasons.length) return { ok: false, reasons: a.reasons, info: { m5: a.info } };
+    const c15 = await gtCandles(net, p.pairAddress, 15);
+    if (!c15) return { deferred: true };
+    const b = chartRules(c15, 15);
+    return { ok: !b.reasons.length, reasons: b.reasons, info: { m5: a.info, m15: b.info } };
+  } catch (e) {
+    return { ok: false, reasons: ['Chart check unavailable: ' + e.message], info: null };
+  }
+}
+
 const STRATS = {
   fresh: {
     name: 'Fresh launches',
@@ -125,6 +200,12 @@ const STRATS = {
       return ageH >= 24 && liq >= 50000 && (p.volume?.h24 || 0) >= 250000 &&
         ch1 >= 5 && ch1 <= 60 && ch6 > 0 && t1.buys > t1.sells;
     },
+  },
+  chart: {
+    name: 'Trending + chart signals',
+    rule: 'Added 19 Nov: same coins as Trending coins, but only buys when the 5 min and 15 min charts both agree. 5 min chart: RSI(14) between 50 and 70 and rising, MACD(12,26,9) above its signal line, and volume over the last 3 candles at least 1.2x the 20 before. 15 min chart: RSI between 50 and 70, MACD above its signal line and the gap widening. Sells like Trending coins.',
+    chart: true,
+    pick(p, ageH) { return STRATS.trending.pick(p, ageH); },
   },
 };
 
@@ -199,6 +280,8 @@ async function scan() {
   syncFromDisk();
   if (!isLeader()) return;
   scanning = true;
+  gtUsed = 0;
+  const S0 = S;
   try {
     const lists = await Promise.allSettled([
       getJson(DS + '/token-profiles/latest/v1'),
@@ -221,7 +304,7 @@ async function scan() {
     for (const [k, st] of Object.entries(S.strategies)) { heldBy[k] = new Set(); st.open.forEach(t => heldBy[k].add(t.token)); st.closed.forEach(t => heldBy[k].add(t.token)); }
     addrs = addrs.filter(a => Object.keys(STRATS).some(k => !heldBy[k].has(a)));
     const pairs = await pairsFor(addrs);
-    for (const [key, def] of Object.entries(STRATS)) {
+    strats: for (const [key, def] of Object.entries(STRATS)) {
       const st = S.strategies[key], held = heldBy[key];
       const cands = Object.values(pairs).filter(p => {
         const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 3600e3 : 0;
@@ -232,11 +315,21 @@ async function scan() {
         if (held.has(p.baseToken.address)) continue;
         const soc = socialsCheck(p);
         let safe = soc.ok ? await safetyCheck(p.baseToken.address) : { ok: false, reasons: soc.reasons, info: null };
+        if (S !== S0) break strats; // another copy reset the data while we waited; drop this scan
         if (safe.ok && def.extra) { const r = def.extra(safe.info); if (r.length) safe = { ...safe, ok: false, reasons: r }; }
+        let chart = null;
+        if (safe.ok && def.chart) {
+          const c = await chartCheck(p);
+          if (S !== S0) break strats; // another copy reset the data while we waited; drop this scan
+          if (c.deferred) continue; // out of chart calls this scan, try again next scan
+          chart = c.info;
+          if (!c.ok) safe = { ...safe, ok: false, reasons: c.reasons };
+        }
         if (!safe.ok) {
           S.skipped = S.skipped || [];
-          if (!S.skipped.some(x => x.token === p.baseToken.address && Date.now() - x.at < 6 * 3600e3)) {
-            S.skipped.unshift({ at: Date.now(), strat: key, token: p.baseToken.address, symbol: p.baseToken.symbol, url: p.url, reasons: safe.reasons });
+          const same = x => x.token === p.baseToken.address && (x.reasons.join('|') === safe.reasons.join('|') ? Date.now() - x.at < 6 * 3600e3 : x.strat === key && Date.now() - x.at < 3600e3);
+          if (!S.skipped.some(same)) {
+            S.skipped.unshift({ at: Date.now(), strat: key, token: p.baseToken.address, symbol: p.baseToken.symbol, url: p.url, reasons: safe.reasons, ...(chart ? { chart } : {}) });
             if (S.skipped.length > 200) S.skipped.length = 200;
             S.skippedCount = (S.skippedCount || 0) + 1;
           }
@@ -250,11 +343,12 @@ async function scan() {
           symbol: p.baseToken.symbol, name: p.baseToken.name, pair: p.pairAddress, dex: p.dexId, url: p.url,
           entryPrice: price, qty, cost: POSITION_USD, openedAt: now,
           entry: { liq: p.liquidity?.usd || 0, mc: p.marketCap || p.fdv || 0, vol1h: p.volume?.h1 || 0, ch1h: p.priceChange?.h1 ?? null },
-          lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info, socials: soc.info,
+          lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info, socials: soc.info, ...(chart ? { chart } : {}),
         });
         held.add(p.baseToken.address);
       }
     }
+    if (S !== S0) return; // data was reset by another copy mid-scan; don't write the old state back
     lastScan = now; S.lastScan = now; lastError = null; save();
   } catch (e) { lastError = e.message; console.warn('[paper] scan failed', e.message); }
   finally { scanning = false; }
@@ -336,3 +430,5 @@ module.exports = function mountPaper(app) {
 };
 module.exports._checkPrices = checkPrices; // used by tests
 module.exports._socialsCheck = socialsCheck; // used by tests
+module.exports._chartCheck = chartCheck; // used by tests
+module.exports._chartRules = chartRules; // used by tests
