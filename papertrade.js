@@ -1,5 +1,5 @@
 // Paper trading: simulated Solana meme coin trades with fake money, using live DexScreener data.
-// No real wallet, no real orders. Four strategies run side by side, each with its own fake balance.
+// No real wallet, no real orders. Several strategies run side by side, each with its own fake balance.
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -8,14 +8,20 @@ const ind = require('./indicators');
 const FILE = process.env.PAPER_FILE || path.join(os.homedir(), 'cipher-data', 'papertrade.json');
 const DS = 'https://api.dexscreener.com';
 const START_BALANCE = 1000;      // US$ per strategy
-const POSITION_USD = 100;        // US$ per trade
+const POSITION_USD = 100;        // US$ per trade (a strategy can set its own positionUsd)
 const MAX_OPEN = 8;              // per strategy
 const TAKE_PROFIT = 0.50;        // +50%
 const STOP_LOSS = -0.25;         // -25%
+const BE_TRIGGER = 0.15;         // once a trade has been up 15%, the stop moves up to break-even
+const TRAIL = 0.20;              // ...and then trails 20% below the highest price seen (it never moves down)
+const COOLDOWN_H = 24;           // after a stop-out at a loss, that strategy won't buy the coin (or a same-ticker copy) for 24 h
+const STOP_REASONS = ['Stop loss', 'Break-even stop', 'Trailing stop'];
+const symKey = sym => 'sym:' + String(sym || '').trim().toLowerCase();
 const RECOUP_AT = 1.00;         // recoup strategy: sell half at +100% to get the stake back
 const RUNNER_TP = 2.00;         // recoup strategy: sell the rest at +200%
 const MAX_HOLD_H = 48;           // close stale trades so fake money isn't stuck forever
 const COST = 0.01;               // 1% simulated swap fee + slippage on each side
+const BE_LEVEL = 1 / ((1 - COST) ** 2); // break-even price as a multiple of entry (about +2%), so a stop there nets about US$0 after both fees
 // popular Solana meme searches, so already-trending coins get found too (not just new listings)
 const SEARCHES = ['SOL', 'pump', 'bonk', 'meme', 'pepe', 'cat', 'dog', 'ai', 'trump', 'moon'];
 const SCAN_MS = 60 * 1000;
@@ -167,7 +173,8 @@ async function chartCheck(p) {
 const STRATS = {
   fresh: {
     name: 'Fresh launches',
-    rule: 'Stricter rules since 18 Nov: pair 1 h to 24 h old (survived its first hour), liquidity at least US$20k and at least 8% of market cap, market cap US$50k to US$5M, 1 h volume at least US$25k from at least 150 trades, more buys than sells in the last 1 h, up in the last hour but not more than 100%, and up over the last 6 h. Also needs at least 300 holders with the top 10 wallets holding 25% or less.',
+    positionUsd: 50,
+    rule: 'US$50 per trade since 21 Nov. Stricter rules since 18 Nov: pair 1 h to 24 h old (survived its first hour), liquidity at least US$20k and at least 8% of market cap, market cap US$50k to US$5M, 1 h volume at least US$25k from at least 150 trades, more buys than sells in the last 1 h, up in the last hour but not more than 100%, and up over the last 6 h. Also needs at least 300 holders with the top 10 wallets holding 25% or less.',
     pick(p, ageH) {
       const liq = p.liquidity?.usd || 0, mc = p.marketCap || p.fdv || 0;
       const t1 = p.txns?.h1 || {};
@@ -186,14 +193,15 @@ const STRATS = {
   },
   recoup: {
     name: 'Recoup and run',
-    rule: 'Buys the same coins as Fresh launches, but sells differently: half at +100% to get the stake back, then the rest at +200%. Before that it stops out at -25%; after it, the rest sells if the price falls back to the buy price.',
+    rule: 'Turned off 21 Nov: it lost most of its balance, so it no longer buys. Its history stays here for comparison. It bought the same coins as Fresh launches, sold half at +100% to get the stake back, then the rest at +200%.',
+    off: true, offNote: 'Turned off 21 Nov',
     exit: 'recoup',
     pick(p, ageH) { return STRATS.fresh.pick(p, ageH); },
     extra(info) { return STRATS.fresh.extra(info); },
   },
   trending: {
     name: 'Trending coins',
-    rule: 'Pair over 24 h old, liquidity at least US$50k, 24 h volume at least US$250k, up 5% to 60% in the last hour and up over the last 6 h, more buys than sells in the last hour.',
+    rule: 'US$100 per trade. Pair over 24 h old, liquidity at least US$50k, 24 h volume at least US$250k, up 5% to 60% in the last hour and up over the last 6 h, more buys than sells in the last hour.',
     pick(p, ageH) {
       const liq = p.liquidity?.usd || 0, t1 = p.txns?.h1 || {};
       const ch1 = p.priceChange?.h1 ?? 0, ch6 = p.priceChange?.h6 ?? 0;
@@ -203,7 +211,7 @@ const STRATS = {
   },
   chart: {
     name: 'Trending + chart signals',
-    rule: 'Added 19 Nov: same coins as Trending coins, but only buys when the 5 min and 15 min charts both agree. 5 min chart: RSI(14) between 50 and 70 and rising, MACD(12,26,9) above its signal line, and volume over the last 3 candles at least 1.2x the 20 before. 15 min chart: RSI between 50 and 70, MACD above its signal line and the gap widening. Sells like Trending coins.',
+    rule: 'Added 19 Nov, US$100 per trade: same coins as Trending coins, but only buys when the 5 min and 15 min charts both agree. 5 min chart: RSI(14) between 50 and 70 and rising, MACD(12,26,9) above its signal line, and volume over the last 3 candles at least 1.2x the 20 before. 15 min chart: RSI between 50 and 70, MACD above its signal line and the gap widening. Sells like Trending coins.',
     chart: true,
     pick(p, ageH) { return STRATS.trending.pick(p, ageH); },
   },
@@ -215,12 +223,19 @@ function blank() {
   return s;
 }
 function load() {
+  let s;
+  try { s = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch (e) { return blank(); }
+  if (!s || !s.strategies) return blank();
+  // upgrades to saved data; a failure here must never wipe the saved trades
   try {
-    const s = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    if (!s || !s.strategies) return blank();
     for (const k of Object.keys(STRATS)) if (!s.strategies[k]) s.strategies[k] = { cash: START_BALANCE, open: [], closed: [], startedAt: Date.now() };
-    return s;
-  } catch (e) { return blank(); }
+    // first load after the 21 Nov update: start cooldowns from stop-outs in the last 24 h
+    for (const st of Object.values(s.strategies)) if (!st.cooldown) {
+      st.cooldown = {};
+      for (const t of st.closed || []) if (t.exitAt && Date.now() - t.exitAt < COOLDOWN_H * 3600e3) noteCooldown(st, t, t.pnl, t.exitAt);
+    }
+  } catch (e) { console.warn('[paper] upgrading saved data failed', e.message); }
+  return s;
 }
 let lastWriteMs = 0; // mtime of the file as we last wrote or read it
 function save() { try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE + '.tmp', JSON.stringify(S)); fs.renameSync(FILE + '.tmp', FILE); lastWriteMs = fs.statSync(FILE).mtimeMs; } catch (e) { console.warn('[paper] save failed', e.message); } }
@@ -265,6 +280,39 @@ async function pairsFor(addrs) {
   return best;
 }
 
+// ---------- Stops ----------
+// Starts at -25%. Once the price has been 15% above entry, the stop jumps to break-even (entry plus the two 1% fees,
+// so selling there nets about US$0). After that it trails 20% below the highest price seen. It only ever moves up.
+// Updates t.peak / t.stop / t.stopKind and returns the exit reason if the price is at or below the stop, else null.
+function updateStop(t, price) {
+  t.peak = Math.max(t.peak || t.entryPrice, price);
+  const base = t.entryPrice * (1 + STOP_LOSS);
+  if (!t.stop) { t.stop = base; t.stopKind = 'stop'; }
+  if (t.peak >= t.entryPrice * (1 + BE_TRIGGER)) {
+    const be = t.entryPrice * BE_LEVEL, trail = t.peak * (1 - TRAIL);
+    const lvl = Math.max(be, trail), kind = trail > be ? 'trail' : 'breakeven';
+    if (lvl > t.stop) { t.stop = lvl; t.stopKind = kind; }
+  }
+  if (price > t.stop) return null;
+  return t.stopKind === 'trail' ? 'Trailing stop' : t.stopKind === 'breakeven' ? 'Break-even stop' : 'Stop loss';
+}
+// A stop-out at a loss puts the coin (by address, and by ticker so copycat coins with the same ticker are caught too) on a 24 h cooldown.
+function noteCooldown(st, t, pnl, now = Date.now()) {
+  if (!STOP_REASONS.includes(t.reason) || !(pnl < 0)) return;
+  st.cooldown = st.cooldown || {};
+  const until = now + COOLDOWN_H * 3600e3;
+  st.cooldown[t.token] = until;
+  if (t.symbol) st.cooldown[symKey(t.symbol)] = until;
+}
+function onCooldown(st, token, symbol, now = Date.now()) {
+  const c = st.cooldown || {};
+  return (c[token] || 0) > now || (symbol ? (c[symKey(symbol)] || 0) > now : false);
+}
+function pruneCooldowns(st, now = Date.now()) {
+  if (!st.cooldown) return;
+  for (const [k, v] of Object.entries(st.cooldown)) if (!(v > now)) delete st.cooldown[k];
+}
+
 function closeTrade(st, t, price, reason) {
   const gross = t.qty * price;
   const proceeds = gross * (1 - COST);
@@ -273,6 +321,7 @@ function closeTrade(st, t, price, reason) {
   st.open = st.open.filter(x => x !== t);
   st.closed.unshift({ ...t, exitPrice: price, exitAt: Date.now(), proceeds, pnl, pnlPct: pnl / t.cost * 100, reason });
   if (st.closed.length > 500) st.closed.length = 500;
+  noteCooldown(st, { token: t.token, symbol: t.symbol, reason }, pnl);
 }
 
 async function scan() {
@@ -302,17 +351,20 @@ async function scan() {
     // each strategy never re-buys a token it already traded (strategies can hold the same coin as each other)
     const heldBy = {};
     for (const [k, st] of Object.entries(S.strategies)) { heldBy[k] = new Set(); st.open.forEach(t => heldBy[k].add(t.token)); st.closed.forEach(t => heldBy[k].add(t.token)); }
-    addrs = addrs.filter(a => Object.keys(STRATS).some(k => !heldBy[k].has(a)));
+    addrs = addrs.filter(a => Object.keys(STRATS).some(k => !STRATS[k].off && !heldBy[k].has(a)));
     const pairs = await pairsFor(addrs);
     strats: for (const [key, def] of Object.entries(STRATS)) {
-      const st = S.strategies[key], held = heldBy[key];
+      if (def.off) continue; // turned off: open trades are still managed in checkPrices, but nothing new is bought
+      const st = S.strategies[key], held = heldBy[key], pos = def.positionUsd || POSITION_USD;
+      pruneCooldowns(st, now);
       const cands = Object.values(pairs).filter(p => {
         const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 3600e3 : 0;
         return +p.priceUsd > 0 && def.pick(p, ageH);
       }).sort((a, b) => (b.volume?.h1 || 0) - (a.volume?.h1 || 0));
       for (const p of cands) {
-        if (st.open.length >= MAX_OPEN || st.cash < POSITION_USD) break;
+        if (st.open.length >= MAX_OPEN || st.cash < pos) break;
         if (held.has(p.baseToken.address)) continue;
+        if (onCooldown(st, p.baseToken.address, p.baseToken.symbol, now)) continue; // stopped out in the last 24 h; not listed in Failed checks
         const soc = socialsCheck(p);
         let safe = soc.ok ? await safetyCheck(p.baseToken.address) : { ok: false, reasons: soc.reasons, info: null };
         if (S !== S0) break strats; // another copy reset the data while we waited; drop this scan
@@ -336,12 +388,12 @@ async function scan() {
           continue;
         }
         const price = +p.priceUsd;
-        const qty = POSITION_USD * (1 - COST) / price;
-        st.cash -= POSITION_USD;
+        const qty = pos * (1 - COST) / price;
+        st.cash -= pos;
         st.open.push({
           id: key + '-' + now + '-' + p.baseToken.address.slice(0, 6), token: p.baseToken.address,
           symbol: p.baseToken.symbol, name: p.baseToken.name, pair: p.pairAddress, dex: p.dexId, url: p.url,
-          entryPrice: price, qty, cost: POSITION_USD, openedAt: now,
+          entryPrice: price, qty, cost: pos, openedAt: now, stop: price * (1 + STOP_LOSS), stopKind: 'stop',
           entry: { liq: p.liquidity?.usd || 0, mc: p.marketCap || p.fdv || 0, vol1h: p.volume?.h1 || 0, ch1h: p.priceChange?.h1 ?? null },
           lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info, socials: soc.info, ...(chart ? { chart } : {}),
         });
@@ -370,8 +422,9 @@ async function checkPrices() {
         continue;
       }
       const price = +p.priceUsd, liq = p.liquidity?.usd || 0;
-      t.lastPrice = price; t.lastLiq = liq; t.peak = Math.max(t.peak || price, price); t.lastAt = now;
+      t.lastPrice = price; t.lastLiq = liq; t.lastAt = now;
       const ch = price / t.entryPrice - 1;
+      const stopHit = t.recouped ? null : updateStop(t, price); // after a recoup, the runner has its own rule below
       if (STRATS[k] && STRATS[k].exit === 'recoup') {
         if (!t.recouped && ch >= RECOUP_AT) {
           // sell half to get the stake back, let the other half run
@@ -380,13 +433,13 @@ async function checkPrices() {
           t.recouped = true; t.recoupedAt = now; t.recoupPrice = price;
         } else if (t.recouped && ch >= RUNNER_TP) closeTrade(st, t, price, 'Rest sold at +200%');
         else if (t.recouped && ch <= 0) closeTrade(st, t, price, 'Rest sold at buy price');
-        else if (!t.recouped && ch <= STOP_LOSS) closeTrade(st, t, price, 'Stop loss');
+        else if (!t.recouped && stopHit) closeTrade(st, t, price, stopHit);
         else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
         else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
         continue;
       }
       if (ch >= TAKE_PROFIT) closeTrade(st, t, price, 'Take profit');
-      else if (ch <= STOP_LOSS) closeTrade(st, t, price, 'Stop loss');
+      else if (stopHit) closeTrade(st, t, price, stopHit);
       else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
       else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
     }
@@ -402,7 +455,8 @@ function summary() {
     const realised = st.closed.reduce((s, t) => s + t.pnl, 0);
     const equity = st.cash + openVal;
     out[k] = {
-      name: (STRATS[k] || {}).name || k, rule: (STRATS[k] || {}).rule || '', startedAt: st.startedAt || S.started, start: START_BALANCE, cash: st.cash, openValue: openVal, equity,
+      name: (STRATS[k] || {}).name || k, rule: (STRATS[k] || {}).rule || '', off: !!(STRATS[k] || {}).off, offNote: (STRATS[k] || {}).offNote || null,
+      positionUsd: (STRATS[k] || {}).positionUsd || POSITION_USD, cooling: Object.entries(st.cooldown || {}).filter(([c, v]) => !c.startsWith('sym:') && v > Date.now()).length, startedAt: st.startedAt || S.started, start: START_BALANCE, cash: st.cash, openValue: openVal, equity,
       pnl: equity - START_BALANCE, pnlPct: (equity - START_BALANCE) / START_BALANCE * 100, realised,
       trades: st.closed.length, wins, winRate: st.closed.length ? wins / st.closed.length * 100 : null,
       best: st.closed.reduce((b, t) => (!b || t.pnlPct > b.pnlPct ? t : b), null),
@@ -423,7 +477,7 @@ module.exports = function mountPaper(app) {
   app.get('/api/paper', (req, res) => {
     syncFromDisk();
     res.json({ ok: true, started: S.started, safety: SAFETY, skipped: (S.skipped || []).slice(0, 50), skippedCount: S.skippedCount || 0, lastScan: lastScan || S.lastScan || null, lastPrice: lastPrice || S.lastPrice || null, error: lastError,
-      settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
+      settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, freshPositionUsd: STRATS.fresh.positionUsd, breakEvenAtPct: BE_TRIGGER * 100, trailPct: TRAIL * 100, cooldownH: COOLDOWN_H, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
       strategies: summary() });
   });
   app.post('/api/paper/reset', (req, res) => { S = blank(); save(); setTimeout(scan, 500); res.json({ ok: true }); });
@@ -432,3 +486,8 @@ module.exports._checkPrices = checkPrices; // used by tests
 module.exports._socialsCheck = socialsCheck; // used by tests
 module.exports._chartCheck = chartCheck; // used by tests
 module.exports._chartRules = chartRules; // used by tests
+module.exports._updateStop = updateStop; // used by tests
+module.exports._closeTrade = closeTrade; // used by tests
+module.exports._onCooldown = onCooldown; // used by tests
+module.exports._pruneCooldowns = pruneCooldowns; // used by tests
+module.exports._STRATS = STRATS; // used by tests
