@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const ind = require('./indicators');
+const levMod = require('./leverage');
 
 const FILE = process.env.PAPER_FILE || path.join(os.homedir(), 'cipher-data', 'papertrade.json');
 const DS = 'https://api.dexscreener.com';
@@ -215,6 +216,11 @@ const STRATS = {
     chart: true,
     pick(p, ageH) { return STRATS.trending.pick(p, ageH); },
   },
+  lev: {
+    name: 'Leverage 5x (top 50)',
+    kind: 'lev',
+    rule: 'Added 21 Nov. Paper only: 5x leverage magnifies losses as well as gains, and a 20% move against a trade wipes out its margin. Trades the 50 largest coins by market cap (no stablecoins, wrapped or staked copies, or meme coins) on Binance prices. Every 15 min it checks the 1 h and 4 h charts. Long when both show price above its 50-candle average, MACD above signal and RSI 50 to 70; short when both show price below the average, MACD below signal and RSI 30 to 50. The last 1 h volume must beat its 20-candle average, and altcoins aren\'t bought against BTC\'s 4 h trend. Strongest trends first, at most 4 positions, US$200 margin each (US$1,000 position). Stop 4% against (-20% of margin), take profit +8% (+40%). Once 4% up, the stop moves to break-even and then trails 3% behind the best price. It also exits if the 1 h signal flips. Liquidated at 18% against (whole margin lost). 0.05% fee each side; funding is an estimate (0.01% every 8 h, longs pay, shorts receive). 12 h pause on a coin after a losing trade.',
+  },
 };
 
 function blank() {
@@ -351,9 +357,10 @@ async function scan() {
     // each strategy never re-buys a token it already traded (strategies can hold the same coin as each other)
     const heldBy = {};
     for (const [k, st] of Object.entries(S.strategies)) { heldBy[k] = new Set(); st.open.forEach(t => heldBy[k].add(t.token)); st.closed.forEach(t => heldBy[k].add(t.token)); }
-    addrs = addrs.filter(a => Object.keys(STRATS).some(k => !STRATS[k].off && !heldBy[k].has(a)));
+    addrs = addrs.filter(a => Object.keys(STRATS).some(k => !STRATS[k].off && !STRATS[k].kind && !heldBy[k].has(a)));
     const pairs = await pairsFor(addrs);
     strats: for (const [key, def] of Object.entries(STRATS)) {
+      if (def.kind === 'lev') continue; // the leverage account runs on its own timer (leverage.js)
       if (def.off) continue; // turned off: open trades are still managed in checkPrices, but nothing new is bought
       const st = S.strategies[key], held = heldBy[key], pos = def.positionUsd || POSITION_USD;
       pruneCooldowns(st, now);
@@ -409,7 +416,7 @@ async function scan() {
 async function checkPrices() {
   syncFromDisk();
   if (!isLeader()) return;
-  const open = Object.entries(S.strategies).flatMap(([k, st]) => st.open.map(t => [k, t]));
+  const open = Object.entries(S.strategies).filter(([k]) => !(STRATS[k] && STRATS[k].kind)).flatMap(([k, st]) => st.open.map(t => [k, t]));
   if (!open.length) return;
   try {
     const pairs = await pairsFor([...new Set(open.map(([, t]) => t.token))]);
@@ -447,10 +454,14 @@ async function checkPrices() {
   } catch (e) { lastError = e.message; console.warn('[paper] price check failed', e.message); }
 }
 
+// Leverage account (its own timer: prices every minute, signals every 15 min)
+const lev = levMod.createLeverage({ getS: () => S, save, isLeader, syncFromDisk, key: 'lev' });
+
 function summary() {
   const out = {};
   for (const [k, st] of Object.entries(S.strategies)) {
-    const openVal = st.open.reduce((s, t) => s + t.qty * (t.lastPrice || t.entryPrice) * (1 - COST), 0);
+    const levSum = STRATS[k] && STRATS[k].kind === 'lev' ? lev.summarise(st) : null;
+    const openVal = levSum ? levSum.openValue : st.open.reduce((s, t) => s + t.qty * (t.lastPrice || t.entryPrice) * (1 - COST), 0);
     const wins = st.closed.filter(t => t.pnl > 0).length;
     const realised = st.closed.reduce((s, t) => s + t.pnl, 0);
     const equity = st.cash + openVal;
@@ -465,14 +476,16 @@ function summary() {
       recouped: st.closed.filter(t => t.recouped).length + st.open.filter(t => t.recouped).length,
       closed: st.closed.slice(0, 100),
     };
+    if (levSum) Object.assign(out[k], { kind: 'lev', open: levSum.open, longs: levSum.longs, shorts: levSum.shorts, positionUsd: levMod.LEV.marginUsd, leverage: levMod.LEV.leverage, scan: (S.lev && S.lev.scan) || null, error: lev.error });
   }
   return out;
 }
 
 module.exports = function mountPaper(app) {
   if (!global.__PAPER_TIMERS) {
-    global.__PAPER_TIMERS = [setInterval(scan, SCAN_MS), setInterval(checkPrices, PRICE_MS)];
+    global.__PAPER_TIMERS = [setInterval(scan, SCAN_MS), setInterval(checkPrices, PRICE_MS), setInterval(lev.tick, levMod.LEV.tickMs)];
     setTimeout(scan, 3000);
+    setTimeout(lev.tick, 8000);
   }
   app.get('/api/paper', (req, res) => {
     syncFromDisk();
