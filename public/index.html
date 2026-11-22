@@ -928,6 +928,65 @@
     #alerts-panel div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
     #view-wallet .wl-card { min-width: calc(50% - 5px); }
   }
+  /* Latest crypto news (Overview) */
+  .crypto-news {
+    max-height: 440px;
+    overflow-y: auto;
+    margin: 0 -2px 0 0;
+    padding-right: 6px;
+  }
+  .crypto-news-item {
+    display: block;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+  }
+  .crypto-news-item:last-child { border-bottom: none; }
+  .crypto-news-item:hover .crypto-news-title { color: var(--cyan); }
+  .crypto-news-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+    transition: color 0.2s;
+  }
+  .crypto-news-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    font-size: 10px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .crypto-news-cat {
+    color: var(--cyan);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 9px;
+  }
+  .crypto-news-status {
+    font-size: 12px;
+    color: var(--muted2);
+    padding: 18px 0;
+    text-align: center;
+  }
+  .crypto-news-status.warn { text-align: left; padding: 0 0 8px; color: var(--muted); font-size: 10px; }
+  a.crypto-news-source {
+    color: var(--cyan);
+    text-decoration: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+  }
+  a.crypto-news-source:hover { text-decoration: underline; }
+  @media (max-width: 900px) {
+    .crypto-news { max-height: 360px; }
+    .crypto-news-title { font-size: 13px; }
+    #crypto-news-panel { scroll-margin-top: 66px; }
+  }
+
   /* ── Analyze tab ── */
   #view-analyze { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: auto; padding: 24px 28px 80px; }
   #view-analyze.active { display: flex; }
@@ -1280,6 +1339,17 @@
                 <div class="donut-pct">30%</div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Latest crypto news (CoinDesk) -->
+        <div class="panel" id="crypto-news-panel" style="animation-delay:0.35s">
+          <div class="panel-title">
+            Latest news
+            <span><a class="crypto-news-source" href="https://www.coindesk.com/latest-crypto-news" target="_blank" rel="noopener noreferrer">Source: CoinDesk</a></span>
+          </div>
+          <div class="crypto-news" id="crypto-news-list">
+            <div class="crypto-news-status">Loading latest headlines...</div>
           </div>
         </div>
 
@@ -4006,6 +4076,58 @@
     }
   }
 
+  // Latest crypto news (CoinDesk via /api/news)
+  const newsEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function newsSafeUrl(u) {
+    try {
+      const url = new URL(String(u || ''));
+      if (url.protocol === 'https:' && (url.hostname === 'www.coindesk.com' || url.hostname === 'coindesk.com')) return url.href;
+    } catch (e) {}
+    return '';
+  }
+  function newsAgo(iso) {
+    if (!iso) return '';
+    const ms = Date.now() - new Date(iso).getTime();
+    if (!isFinite(ms)) return '';
+    if (ms < 30000) return 'just now';
+    const m = Math.round(ms / 60000);
+    if (m < 60) return m + 'm ago';
+    const h = Math.round(ms / 3600000);
+    if (h < 24) return h + 'h ago';
+    const d = Math.round(ms / 86400000);
+    return d + 'd ago';
+  }
+  async function loadCryptoNews() {
+    const el = document.getElementById('crypto-news-list');
+    if (!el) return;
+    if (!el.dataset.loaded) {
+      el.innerHTML = '<div class="crypto-news-status">Loading latest headlines...</div>';
+    }
+    try {
+      const res = await fetch('/api/news');
+      const json = await res.json();
+      if (!json.ok || !Array.isArray(json.items) || !json.items.length) throw new Error(json.error || 'No headlines');
+      const rows = json.items.slice(0, 10).map(n => {
+        const href = newsSafeUrl(n.link);
+        if (!href) return '';
+        const cat = n.category ? '<span class="crypto-news-cat">' + newsEsc(n.category) + '</span>' : '';
+        const time = newsAgo(n.published);
+        return '<a class="crypto-news-item" href="' + newsEsc(href) + '" target="_blank" rel="noopener noreferrer">' +
+          '<div class="crypto-news-title">' + newsEsc(n.title || '') + '</div>' +
+          '<div class="crypto-news-meta">' + cat + (time ? '<span>' + newsEsc(time) + '</span>' : '') + '</div>' +
+        '</a>';
+      }).join('');
+      if (!rows) throw new Error('No headlines');
+      const stale = json.stale ? '<div class="crypto-news-status warn">Could not refresh. Showing the last headlines we have.</div>' : '';
+      el.innerHTML = stale + rows;
+      el.dataset.loaded = '1';
+    } catch (e) {
+      if (!el.dataset.loaded) {
+        el.innerHTML = '<div class="crypto-news-status">Could not load CoinDesk news. It will retry automatically.</div>';
+      }
+    }
+  }
+
   // ─── Init ─────────────────────────────────────────────────────────────────
   updateBadges();
   updateWatchBadge();
@@ -4016,6 +4138,8 @@
   fetchFx();
   setInterval(fetchFx, 3600000);
   loadOverviewNFTs();
+  loadCryptoNews();
+  setInterval(loadCryptoNews, 5 * 60 * 1000);
 </script>
 <script>
   // ─── Paper Trading tab ─────────────────────────────────────────────────────

@@ -628,6 +628,157 @@ app.get('/api/nft/news', async (req, res) => {
   }
 });
 
+// ── Route: latest crypto news (CoinDesk RSS, cached 5 min) ────────────────
+// GET /api/news
+const NEWS_FEED_URL = 'https://www.coindesk.com/arc/outboundfeeds/rss';
+const NEWS_CACHE_MS = 5 * 60 * 1000;
+let newsCache = { items: null, fetchedAt: 0 };
+
+function newsDecodeEntities(s) {
+  return String(s || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => {
+      const code = Number(n);
+      return (code >= 0 && code <= 0x10ffff) ? String.fromCodePoint(code) : '';
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => {
+      const code = parseInt(n, 16);
+      return (code >= 0 && code <= 0x10ffff) ? String.fromCodePoint(code) : '';
+    });
+}
+
+function newsXmlTag(block, tag) {
+  const re = new RegExp('<' + tag + '(?:\\s[^>]*)?>\\s*(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))\\s*</' + tag + '>', 'i');
+  const m = block.match(re);
+  if (!m) return '';
+  return newsDecodeEntities(m[1] != null ? m[1] : (m[2] || '')).replace(/\s+/g, ' ').trim();
+}
+
+function newsStripHtml(s) {
+  return newsDecodeEntities(String(s || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+}
+
+function newsIsCoinDeskUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && (u.hostname === 'www.coindesk.com' || u.hostname === 'coindesk.com');
+  } catch (e) {
+    return false;
+  }
+}
+
+function newsPickCategory(block) {
+  const cats = [];
+  const re = /<category([^>]*)>(?:\s*<!\[CDATA\[([\s\S]*?)\]\]>|\s*([\s\S]*?))<\/category>/gi;
+  let m;
+  while ((m = re.exec(block))) {
+    const attrs = m[1] || '';
+    const text = newsDecodeEntities(m[2] != null ? m[2] : (m[3] || '')).replace(/\s+/g, ' ').trim();
+    if (!text || /^news$/i.test(text)) continue;
+    const domain = (attrs.match(/domain="([^"]*)"/) || [])[1] || '';
+    cats.push({ text, domain });
+  }
+  const section = cats.find(c => /coindesk\.com\/.+/i.test(c.domain) && !/\/tag/i.test(c.domain));
+  if (section) return section.text;
+  const notTag = cats.find(c => c.domain !== 'tag');
+  return (notTag || cats[0] || {}).text || '';
+}
+
+function parseCoinDeskRss(xml) {
+  const items = [];
+  const re = /<item>([\s\S]*?)<\/item>/gi;
+  let m;
+  while ((m = re.exec(xml)) && items.length < 20) {
+    const block = m[1];
+    const title = newsXmlTag(block, 'title');
+    let link = newsXmlTag(block, 'link');
+    if (!link) {
+      const g = block.match(/<guid[^>]*isPermaLink="true"[^>]*>([\s\S]*?)<\/guid>/i);
+      if (g) link = newsDecodeEntities(g[1]).trim();
+    }
+    if (!title || !newsIsCoinDeskUrl(link)) continue;
+    const publishedRaw = newsXmlTag(block, 'pubDate');
+    const publishedDate = publishedRaw ? new Date(publishedRaw) : null;
+    const published = publishedDate && !isNaN(publishedDate.getTime()) ? publishedDate.toISOString() : null;
+    let description = newsStripHtml(newsXmlTag(block, 'description'));
+    if (description.length > 220) description = description.slice(0, 217).replace(/\s+\S*$/, '') + '\u2026';
+    const category = newsPickCategory(block);
+    const item = { title, link, published };
+    if (description) item.description = description;
+    if (category) item.category = category;
+    items.push(item);
+  }
+  return items;
+}
+
+async function fetchCoinDeskNews() {
+  const now = Date.now();
+  if (newsCache.items && now - newsCache.fetchedAt < NEWS_CACHE_MS) {
+    return {
+      ok: true,
+      cached: true,
+      stale: false,
+      fetchedAt: new Date(newsCache.fetchedAt).toISOString(),
+      source: 'CoinDesk',
+      items: newsCache.items,
+    };
+  }
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 12000);
+    const r = await fetch(NEWS_FEED_URL, {
+      signal: ac.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'CIPHER-Dashboard/1.0 (crypto news panel; +https://cryptodash.io)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      },
+    });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('CoinDesk RSS HTTP ' + r.status);
+    const xml = await r.text();
+    const items = parseCoinDeskRss(xml);
+    if (!items.length) throw new Error('CoinDesk RSS had no items');
+    newsCache = { items, fetchedAt: Date.now() };
+    return {
+      ok: true,
+      cached: false,
+      stale: false,
+      fetchedAt: new Date(newsCache.fetchedAt).toISOString(),
+      source: 'CoinDesk',
+      items,
+    };
+  } catch (err) {
+    if (newsCache.items) {
+      return {
+        ok: true,
+        cached: true,
+        stale: true,
+        error: 'Could not refresh CoinDesk news',
+        fetchedAt: new Date(newsCache.fetchedAt).toISOString(),
+        source: 'CoinDesk',
+        items: newsCache.items,
+      };
+    }
+    throw err;
+  }
+}
+
+app.get('/api/news', async (req, res) => {
+  try {
+    const payload = await fetchCoinDeskNews();
+    res.json(payload);
+  } catch (err) {
+    console.error('News /api/news error:', err.message);
+    res.status(502).json({ ok: false, error: 'Could not load CoinDesk news' });
+  }
+});
+
 // ── Catch-all: serve dashboard (skip API + breakout assets) ───────────────
 // -- Route: USD to AUD exchange rate (free, no key; cached 1 hour) --
 let fxCache = { rate: null, at: 0 };
