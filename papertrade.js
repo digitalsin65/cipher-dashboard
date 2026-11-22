@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const ind = require('./indicators');
 const levMod = require('./leverage');
+const walletsMod = require('./wallets');
 
 const FILE = process.env.PAPER_FILE || path.join(os.homedir(), 'cipher-data', 'papertrade.json');
 const DS = 'https://api.dexscreener.com';
@@ -122,8 +123,7 @@ async function gtCandles(net, pool, mins) {
   if (Date.now() < gtBackoffUntil) throw new Error('chart data provider is rate limiting us, will retry shortly');
   if (gtUsed >= GT_MAX_PER_SCAN) return null;
   gtUsed++;
-  const wait = gtNext - Date.now(); if (wait > 0) await sleep(wait);
-  gtNext = Date.now() + GT_GAP_MS;
+  const at = Math.max(Date.now(), gtNext); gtNext = at + GT_GAP_MS; if (at > Date.now()) await sleep(at - Date.now());
   let r;
   try { r = await fetch(GT + '/networks/' + net + '/pools/' + pool + '/ohlcv/minute?aggregate=' + mins + '&limit=100', { signal: AbortSignal.timeout(12000), headers: { accept: 'application/json' } }); }
   catch (e) { candleCache.set(key, { at: Date.now(), ttl: 2 * 60e3, err: 'chart data could not be loaded (' + e.message + ')' }); throw new Error('chart data could not be loaded (' + e.message + ')'); }
@@ -137,6 +137,16 @@ async function gtCandles(net, pool, mins) {
     .map(x => x.map(Number)).sort((a, b) => a[0] - b[0]);
   candleCache.set(key, { at: Date.now(), ttl: (mins <= 5 ? 4 : 10) * 60e3, candles: list });
   return list;
+}
+// Any other GeckoTerminal call (used by the copy-wallets discovery) goes through the same spacing and back-off.
+async function gtGet(url) {
+  if (Date.now() < gtBackoffUntil) throw new Error('GeckoTerminal rate limit, will retry later');
+  const at = Math.max(Date.now(), gtNext); gtNext = at + GT_GAP_MS; if (at > Date.now()) await sleep(at - Date.now());
+  const r = await fetch(url, { signal: AbortSignal.timeout(12000), headers: { accept: 'application/json' } });
+  if (r.status === 429) { gtBackoffMs = Math.min(gtBackoffMs ? gtBackoffMs * 2 : 60e3, 10 * 60e3); gtBackoffUntil = Date.now() + gtBackoffMs; throw new Error('GeckoTerminal rate limit, will retry later'); }
+  if (!r.ok) throw new Error('GeckoTerminal HTTP ' + r.status);
+  gtBackoffMs = 0;
+  return r.json();
 }
 // Momentum entry on one timeframe. Returns { info, reasons }.
 function chartRules(candles, mins) {
@@ -215,6 +225,12 @@ const STRATS = {
     rule: 'Added 19 Nov, US$100 per trade: same coins as Trending coins, but only buys when the 5 min and 15 min charts both agree. 5 min chart: RSI(14) between 50 and 70 and rising, MACD(12,26,9) above its signal line, and volume over the last 3 candles at least 1.2x the 20 before. 15 min chart: RSI between 50 and 70, MACD above its signal line and the gap widening. Sells like Trending coins.',
     chart: true,
     pick(p, ageH) { return STRATS.trending.pick(p, ageH); },
+  },
+  copy: {
+    name: 'Copy smart wallets',
+    kind: 'copy',
+    positionUsd: 50,
+    rule: 'Added 22 Nov, US$50 per trade. Watches 10 to 30 Solana wallets that we scored ourselves from their recent on-chain swaps: at least 55% of closed trades in profit, at least 20 closed trades, positive realised P/L, and not a bot (under 300 transactions a day). Buys when 2 or more watched wallets buy the same coin within 30 minutes, or 1 wallet with a very strong record (75%+ wins over 40+ trades). Skips it if the price is already up more than 50% since the first wallet bought. The coin must still pass the socials and RugCheck checks and the 24 h no-rebuy rule. Sells like the other meme strategies (stop -25%, break-even at +15%, then a 20% trailing stop, take profit +50%), and also sells when most of the wallets it copied have sold. Wallets that turn bad on a re-check are dropped.',
   },
   lev: {
     name: 'Leverage 5x (top 50)',
@@ -358,16 +374,21 @@ async function scan() {
     const heldBy = {};
     for (const [k, st] of Object.entries(S.strategies)) { heldBy[k] = new Set(); st.open.forEach(t => heldBy[k].add(t.token)); st.closed.forEach(t => heldBy[k].add(t.token)); }
     addrs = addrs.filter(a => Object.keys(STRATS).some(k => !STRATS[k].off && !STRATS[k].kind && !heldBy[k].has(a)));
+    const copySignals = copy.signals(now);
+    if (copySignals.length) addrs = [...new Set([...addrs, ...copySignals.map(x => x.mint)])];
     const pairs = await pairsFor(addrs);
     strats: for (const [key, def] of Object.entries(STRATS)) {
       if (def.kind === 'lev') continue; // the leverage account runs on its own timer (leverage.js)
       if (def.off) continue; // turned off: open trades are still managed in checkPrices, but nothing new is bought
       const st = S.strategies[key], held = heldBy[key], pos = def.positionUsd || POSITION_USD;
       pruneCooldowns(st, now);
-      const cands = Object.values(pairs).filter(p => {
-        const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 3600e3 : 0;
-        return +p.priceUsd > 0 && def.pick(p, ageH);
-      }).sort((a, b) => (b.volume?.h1 || 0) - (a.volume?.h1 || 0));
+      const sigOf = {};
+      const cands = def.kind === 'copy'
+        ? copySignals.filter(x => pairs[x.mint] && +pairs[x.mint].priceUsd > 0).sort((a, b) => b.wallets.length - a.wallets.length).map(x => { sigOf[x.mint] = x; return pairs[x.mint]; })
+        : Object.values(pairs).filter(p => {
+          const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 3600e3 : 0;
+          return +p.priceUsd > 0 && def.pick(p, ageH);
+        }).sort((a, b) => (b.volume?.h1 || 0) - (a.volume?.h1 || 0));
       for (const p of cands) {
         if (st.open.length >= MAX_OPEN || st.cash < pos) break;
         if (held.has(p.baseToken.address)) continue;
@@ -376,7 +397,15 @@ async function scan() {
         let safe = soc.ok ? await safetyCheck(p.baseToken.address) : { ok: false, reasons: soc.reasons, info: null };
         if (S !== S0) break strats; // another copy reset the data while we waited; drop this scan
         if (safe.ok && def.extra) { const r = def.extra(safe.info); if (r.length) safe = { ...safe, ok: false, reasons: r }; }
-        let chart = null;
+        let chart = null, copied = null;
+        if (safe.ok && def.kind === 'copy') {
+          const sg = sigOf[p.baseToken.address];
+          const solUsd = copy.solUsd || 0;
+          const curSol = p.quoteToken?.address === walletsMod.SOL ? +p.priceNative : solUsd > 0 ? +p.priceUsd / solUsd : 0;
+          const runUp = sg.firstPriceSol > 0 && curSol > 0 ? (curSol / sg.firstPriceSol - 1) * 100 : null;
+          copied = { wallets: sg.wallets, firstAt: sg.firstAt, firstPriceSol: sg.firstPriceSol, runUpPct: runUp == null ? null : +runUp.toFixed(1) };
+          if (runUp != null && runUp > 50) safe = { ...safe, ok: false, reasons: ['Price already up ' + runUp.toFixed(0) + '% since the first wallet bought (limit 50%)'] };
+        }
         if (safe.ok && def.chart) {
           const c = await chartCheck(p);
           if (S !== S0) break strats; // another copy reset the data while we waited; drop this scan
@@ -402,7 +431,7 @@ async function scan() {
           symbol: p.baseToken.symbol, name: p.baseToken.name, pair: p.pairAddress, dex: p.dexId, url: p.url,
           entryPrice: price, qty, cost: pos, openedAt: now, stop: price * (1 + STOP_LOSS), stopKind: 'stop',
           entry: { liq: p.liquidity?.usd || 0, mc: p.marketCap || p.fdv || 0, vol1h: p.volume?.h1 || 0, ch1h: p.priceChange?.h1 ?? null },
-          lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info, socials: soc.info, ...(chart ? { chart } : {}),
+          lastPrice: price, lastLiq: p.liquidity?.usd || 0, peak: price, safety: safe.info, socials: soc.info, ...(chart ? { chart } : {}), ...(copied ? { copy: copied } : {}),
         });
         held.add(p.baseToken.address);
       }
@@ -416,7 +445,7 @@ async function scan() {
 async function checkPrices() {
   syncFromDisk();
   if (!isLeader()) return;
-  const open = Object.entries(S.strategies).filter(([k]) => !(STRATS[k] && STRATS[k].kind)).flatMap(([k, st]) => st.open.map(t => [k, t]));
+  const open = Object.entries(S.strategies).filter(([k]) => !(STRATS[k] && STRATS[k].kind === 'lev')).flatMap(([k, st]) => st.open.map(t => [k, t]));
   if (!open.length) return;
   try {
     const pairs = await pairsFor([...new Set(open.map(([, t]) => t.token))]);
@@ -431,7 +460,8 @@ async function checkPrices() {
       const price = +p.priceUsd, liq = p.liquidity?.usd || 0;
       t.lastPrice = price; t.lastLiq = liq; t.lastAt = now;
       const ch = price / t.entryPrice - 1;
-      const stopHit = t.recouped ? null : updateStop(t, price); // after a recoup, the runner has its own rule below
+      const stopHit = t.recouped ? null : updateStop(t, price);
+      let si = null; // after a recoup, the runner has its own rule below
       if (STRATS[k] && STRATS[k].exit === 'recoup') {
         if (!t.recouped && ch >= RECOUP_AT) {
           // sell half to get the stake back, let the other half run
@@ -447,6 +477,7 @@ async function checkPrices() {
       }
       if (ch >= TAKE_PROFIT) closeTrade(st, t, price, 'Take profit');
       else if (stopHit) closeTrade(st, t, price, stopHit);
+      else if (t.copy && (si = copy.soldInfo(t)) && si.majority) closeTrade(st, t, price, 'Copied wallets sold (' + si.sold + ' of ' + si.of + ')');
       else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
       else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
     }
@@ -456,6 +487,9 @@ async function checkPrices() {
 
 // Leverage account (its own timer: prices every minute, signals every 15 min)
 const lev = levMod.createLeverage({ getS: () => S, save, isLeader, syncFromDisk, key: 'lev' });
+// Copy smart wallets engine (its own timer: wallet swaps every minute, scoring a slice at a time, discovery daily).
+// SOLANA_RPC_URL can point at your own RPC (e.g. a Helius URL with its key); otherwise the free public RPC is used.
+const copy = walletsMod.createCopy({ getS: () => S, save, isLeader, syncFromDisk, gtGet, rpcUrl: process.env.SOLANA_RPC_URL || null });
 
 function summary() {
   const out = {};
@@ -476,6 +510,7 @@ function summary() {
       recouped: st.closed.filter(t => t.recouped).length + st.open.filter(t => t.recouped).length,
       closed: st.closed.slice(0, 100),
     };
+    if (STRATS[k] && STRATS[k].kind === 'copy') out[k].copy = copy.info();
     if (levSum) Object.assign(out[k], { kind: 'lev', open: levSum.open, longs: levSum.longs, shorts: levSum.shorts, positionUsd: levMod.LEV.marginUsd, leverage: levMod.LEV.leverage, scan: (S.lev && S.lev.scan) || null, error: lev.error });
   }
   return out;
@@ -483,7 +518,8 @@ function summary() {
 
 module.exports = function mountPaper(app) {
   if (!global.__PAPER_TIMERS) {
-    global.__PAPER_TIMERS = [setInterval(scan, SCAN_MS), setInterval(checkPrices, PRICE_MS), setInterval(lev.tick, levMod.LEV.tickMs)];
+    global.__PAPER_TIMERS = [setInterval(scan, SCAN_MS), setInterval(checkPrices, PRICE_MS), setInterval(lev.tick, levMod.LEV.tickMs), setInterval(copy.tick, walletsMod.W.pollMs)];
+    setTimeout(copy.tick, 15000);
     setTimeout(scan, 3000);
     setTimeout(lev.tick, 8000);
   }
@@ -496,6 +532,7 @@ module.exports = function mountPaper(app) {
   app.post('/api/paper/reset', (req, res) => { S = blank(); save(); setTimeout(scan, 500); res.json({ ok: true }); });
 };
 module.exports._checkPrices = checkPrices; // used by tests
+module.exports._scan = scan; // used by tests
 module.exports._socialsCheck = socialsCheck; // used by tests
 module.exports._chartCheck = chartCheck; // used by tests
 module.exports._chartRules = chartRules; // used by tests
@@ -504,3 +541,4 @@ module.exports._closeTrade = closeTrade; // used by tests
 module.exports._onCooldown = onCooldown; // used by tests
 module.exports._pruneCooldowns = pruneCooldowns; // used by tests
 module.exports._STRATS = STRATS; // used by tests
+module.exports._copy = copy; // used by tests
