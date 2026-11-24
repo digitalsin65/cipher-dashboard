@@ -6,6 +6,7 @@ const os = require('os');
 const ind = require('./indicators');
 const levMod = require('./leverage');
 const walletsMod = require('./wallets');
+const manualMod = require('./manual');
 
 const FILE = process.env.PAPER_FILE || path.join(os.homedir(), 'cipher-data', 'papertrade.json');
 const DS = 'https://api.dexscreener.com';
@@ -509,6 +510,9 @@ const lev = levMod.createLeverage({ getS: () => S, save, isLeader, syncFromDisk,
 // Copy smart wallets engine (its own timer: wallet swaps every minute, scoring a slice at a time, discovery daily).
 // SOLANA_RPC_URL can point at your own RPC (e.g. a Helius URL with its key); otherwise the free public RPC is used.
 const copy = walletsMod.createCopy({ getS: () => S, save, isLeader, syncFromDisk, gtGet, rpcUrl: process.env.SOLANA_RPC_URL || null });
+// "My leverage": Mike's own hand-picked paper leverage trades (S.manual), checked every 5 s for TP/SL/liquidation.
+const manual = manualMod.createManual({ getS: () => S, save, isLeader, syncFromDisk,
+  backup: tag => { try { if (fs.existsSync(FILE)) fs.copyFileSync(FILE, FILE + '.' + tag + '-' + Date.now()); } catch (e) {} } });
 
 function summary() {
   const out = {};
@@ -537,11 +541,12 @@ function summary() {
 
 module.exports = function mountPaper(app) {
   if (!global.__PAPER_TIMERS) {
-    global.__PAPER_TIMERS = [setInterval(scan, SCAN_MS), setInterval(checkPrices, PRICE_MS), setInterval(lev.tick, levMod.LEV.tickMs), setInterval(copy.tick, walletsMod.W.pollMs)];
+    global.__PAPER_TIMERS = [setInterval(scan, SCAN_MS), setInterval(checkPrices, PRICE_MS), setInterval(lev.tick, levMod.LEV.tickMs), setInterval(copy.tick, walletsMod.W.pollMs), setInterval(manual.tick, manualMod.MAN.tickMs)];
     setTimeout(copy.tick, 15000);
     setTimeout(scan, 3000);
     setTimeout(lev.tick, 8000);
   }
+  manual.mount(app);
   app.get('/api/paper', (req, res) => {
     syncFromDisk();
     res.json({ ok: true, started: S.started, safety: SAFETY, skipped: (S.skipped || []).slice(0, 50), skippedCount: S.skippedCount || 0, lastScan: lastScan || S.lastScan || null, lastPrice: lastPrice || S.lastPrice || null, error: lastError,
@@ -552,8 +557,9 @@ module.exports = function mountPaper(app) {
   // wallets) carries over, since it isn't trading history and takes days to rebuild.
   app.post('/api/paper/reset', (req, res) => {
     try { if (fs.existsSync(FILE)) fs.copyFileSync(FILE, FILE + '.before-reset-' + Date.now()); } catch (e) {}
-    const keep = S.copy; S = blank();
+    const keep = S.copy, keepManual = S.manual, keepManualHist = S.manualHistory; S = blank();
     if (keep) S.copy = { ...keep, buys: [], sells: [], job: null };
+    if (keepManual) { S.manual = keepManual; S.manualHistory = keepManualHist; } // your own leverage account has its own Reset
     save(); setTimeout(scan, 500); res.json({ ok: true });
   });
 };
@@ -569,3 +575,4 @@ module.exports._pruneCooldowns = pruneCooldowns; // used by tests
 module.exports._STRATS = STRATS; // used by tests
 module.exports._copy = copy; // used by tests
 module.exports._state = () => S; // used by tests
+module.exports._manual = manual; // used by tests

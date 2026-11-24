@@ -1051,6 +1051,78 @@
   .pt-reset { padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,.4); background: transparent; color: #ef4444; cursor: pointer; font: inherit; font-size: 12px; }
   @media (max-width: 800px) { .pt-cards { grid-template-columns: 1fr; } }
   @media (max-width: 640px) { #view-paper { padding: 66px 12px 80px; } .pt-stats { grid-template-columns: repeat(2, 1fr); } .pt-eq { font-size: 26px; } }
+  /* ── My leverage (manual paper leverage account) ── */
+  .pt-tabs { display: flex; gap: 6px; margin: 0 0 16px; }
+  .pt-tabs button { padding: 8px 16px; border-radius: 9px; border: 1px solid var(--border); background: transparent; color: var(--muted2); cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; }
+  .pt-tabs button.on { background: rgba(0,245,196,.1); color: var(--cyan); border-color: rgba(0,245,196,.4); }
+  .ml-grid { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; align-items: start; margin-top: 16px; }
+  .ml-grid > * { min-width: 0; }
+  .ml-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .ml-card h3 { margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text); }
+  .ml-acct { display: grid; grid-template-columns: 1.4fr repeat(5, 1fr); gap: 12px; align-items: end; }
+  .ml-acct small { color: var(--muted); font-size: 11px; }
+  .ml-acct div { color: var(--muted); font-size: 12px; }
+  .ml-acct b { display: block; color: var(--text); font-family: 'DM Mono', monospace; font-size: 15px; margin-top: 2px; }
+  .ml-acct .ml-big b { font-size: 26px; font-weight: 800; }
+  .ml-lbl { display: block; color: var(--muted2); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin: 14px 0 6px; }
+  .ml-in { width: 100%; box-sizing: border-box; background: var(--card2); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; }
+  .ml-in:focus { outline: none; border-color: rgba(0,245,196,.5); }
+  .ml-coin { position: relative; }
+  .ml-drop { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); max-height: 260px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border2); border-radius: 10px; z-index: 30; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+  .ml-drop.open { display: block; }
+  .ml-drop div { display: flex; justify-content: space-between; gap: 8px; padding: 9px 12px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .ml-drop div:hover, .ml-drop div.hl { background: rgba(0,245,196,.08); }
+  .ml-drop small { color: var(--muted); font-family: 'DM Mono', monospace; }
+  .ml-sel { margin-top: 6px; min-height: 15px; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .ml-side { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ml-side button { padding: 11px; border-radius: 9px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .ml-side button.long.on { background: rgba(34,197,94,.15); border-color: rgba(34,197,94,.6); color: #22c55e; }
+  .ml-side button.short.on { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.6); color: #ef4444; }
+  .ml-row { display: flex; gap: 6px; align-items: center; }
+  .ml-row .ml-in { flex: 1; min-width: 0; }
+  .ml-chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .ml-chips button, .ml-unit { padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); font: inherit; font-size: 12px; cursor: pointer; }
+  .ml-chips button.on { color: var(--cyan); border-color: rgba(0,245,196,.45); background: rgba(0,245,196,.08); }
+  .ml-unit { min-width: 44px; padding: 10px 8px; font-weight: 600; }
+  .ml-levv { font-family: 'DM Mono', monospace; color: var(--cyan); font-weight: 700; font-size: 16px; min-width: 42px; text-align: right; }
+  input[type=range].ml-range { flex: 1; accent-color: #00f5c4; }
+  .ml-tpsl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ml-sum { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; font-size: 12px; color: var(--muted); }
+  .ml-sum b { color: var(--text); font-family: 'DM Mono', monospace; font-weight: 500; text-align: right; }
+  .ml-go { width: 100%; margin-top: 14px; padding: 13px; border: 0; border-radius: 10px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; color: #08110c; background: #22c55e; }
+  .ml-go.short { background: #ef4444; color: #fff; }
+  .ml-go:disabled { opacity: .5; cursor: default; }
+  .ml-msg { min-height: 16px; margin-top: 8px; font-size: 12px; }
+  .ml-msg.err { color: #ef4444; } .ml-msg.ok { color: #22c55e; }
+  .ml-pos { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 10px; background: var(--card2); }
+  .ml-pos:first-child { margin-top: 0; }
+  .ml-pos-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ml-pos-h .t { font-weight: 700; font-size: 15px; color: var(--text); }
+  .ml-pos-h .t a { color: inherit; text-decoration: none; }
+  .ml-tag { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .ml-tag.long { background: rgba(34,197,94,.15); color: #22c55e; } .ml-tag.short { background: rgba(239,68,68,.15); color: #ef4444; }
+  .ml-pnl { font-family: 'DM Mono', monospace; font-weight: 700; font-size: 16px; text-align: right; }
+  .ml-pos-g { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .ml-pos-g b { display: block; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; margin-top: 1px; }
+  .ml-acts { display: flex; gap: 6px; margin-top: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .ml-acts button { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); font: inherit; font-size: 12px; cursor: pointer; }
+  .ml-acts button.all { border-color: rgba(239,68,68,.45); color: #ef4444; font-weight: 600; }
+  .ml-hist-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ml-hist td small { display: block; color: var(--muted); font-size: 11px; }
+  .ml-show-sm { display: none; }
+  .ml-warn { font-size: 11px; color: var(--muted); line-height: 1.45; margin-top: 12px; }
+  @media (max-width: 1100px) { .ml-acct { grid-template-columns: repeat(3, 1fr); } .ml-acct .ml-big { grid-column: 1 / -1; } }
+  @media (max-width: 860px) { .ml-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .ml-acct { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .ml-acct .ml-big b { font-size: 24px; }
+    .ml-pos-g { grid-template-columns: repeat(2, 1fr); }
+    .ml-card { padding: 14px; }
+    .ml-hide-sm { display: none; }
+    .ml-show-sm { display: inline; }
+    .ml-hist td, .ml-hist th { padding: 8px 8px; font-size: 12px; }
+    .ml-in { font-size: 16px; } /* stops iPhone zooming into inputs */
+  }
 </style>
 </head>
 <body>
@@ -1879,9 +1951,41 @@
       <div class="mk-head">
         <div>
           <h2>Paper Trading</h2>
-          <div class="mk-sub">Solana meme coins with fake money, live prices from DexScreener. No real trades.</div>
+          <div class="mk-sub" id="pt-sub">Solana meme coins with fake money, live prices from DexScreener. No real trades.</div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center"><span class="mk-sub" id="pt-status"></span><button class="pt-reset" onclick="ptReset()">Reset</button></div>
+        <div id="pt-hdr-ctl" style="display:flex;gap:10px;align-items:center"><span class="mk-sub" id="pt-status"></span><button class="pt-reset" onclick="ptReset()">Reset</button></div>
+      </div>
+      <div class="pt-tabs"><button id="pt-tab-bots" onclick="ptTab('bots')">Bot strategies</button><button id="pt-tab-man" onclick="ptTab('man')">My leverage</button></div>
+      <div id="ml-wrap" style="display:none">
+        <div class="ml-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h3 style="margin:0">My leverage <span class="pt-badge">Paper money</span></h3><div style="display:flex;gap:10px;align-items:center"><span class="mk-sub" id="ml-status"></span><button class="pt-reset" onclick="mlReset()">Reset my account</button></div></div><div id="ml-acct"><div class="pt-empty">Loading…</div></div></div>
+        <div class="ml-grid">
+          <div class="ml-card" id="ml-ticket">
+            <h3>New trade</h3>
+            <label class="ml-lbl" for="ml-q" style="margin-top:0">Coin</label>
+            <div class="ml-coin"><input id="ml-q" class="ml-in" onblur="setTimeout(() => mlEl('ml-drop').classList.remove('open'), 150)" placeholder="Search BTC, ETH, SOL…" autocomplete="off" oninput="mlFilter()" onfocus="mlFilter()" onkeydown="mlKey(event)"><div class="ml-drop" id="ml-drop"></div></div>
+            <div class="ml-sel" id="ml-sel"></div>
+            <span class="ml-lbl">Direction</span>
+            <div class="ml-side"><button class="long on" id="ml-long" onclick="mlSide('long')">Long ↑</button><button class="short" id="ml-short" onclick="mlSide('short')">Short ↓</button></div>
+            <span class="ml-lbl">Leverage</span>
+            <div class="ml-row"><input type="range" class="ml-range" id="ml-lev" min="1" max="20" step="1" value="5" oninput="mlLev(this.value)"><span class="ml-levv" id="ml-levv">5x</span></div>
+            <div class="ml-chips" id="ml-levchips"><button onclick="mlLev(2)">2x</button><button onclick="mlLev(5)">5x</button><button onclick="mlLev(10)">10x</button><button onclick="mlLev(20)">20x</button></div>
+            <label class="ml-lbl" for="ml-margin">Margin (US$)</label>
+            <input id="ml-margin" class="ml-in" type="number" inputmode="decimal" min="5" step="1" value="100" oninput="mlCalc()">
+            <div class="ml-chips"><button onclick="mlPct(10)">10%</button><button onclick="mlPct(25)">25%</button><button onclick="mlPct(50)">50%</button><button onclick="mlPct(100)">Max</button></div>
+            <div class="ml-tpsl">
+              <div><label class="ml-lbl" for="ml-tp">Take profit</label><div class="ml-row"><input id="ml-tp" class="ml-in" type="number" inputmode="decimal" placeholder="Optional" oninput="mlCalc()"><button class="ml-unit" id="ml-tpu" onclick="mlUnit('tp')">%</button></div></div>
+              <div><label class="ml-lbl" for="ml-sl">Stop loss</label><div class="ml-row"><input id="ml-sl" class="ml-in" type="number" inputmode="decimal" placeholder="Optional" oninput="mlCalc()"><button class="ml-unit" id="ml-slu" onclick="mlUnit('sl')">%</button></div></div>
+            </div>
+            <div class="ml-sum" id="ml-sum"></div>
+            <button class="ml-go" id="ml-go" onclick="mlOpen()">Open long</button>
+            <div class="ml-msg" id="ml-msg"></div>
+            <div class="ml-warn">% for take profit and stop loss is the price move from your entry (e.g. 3% stop on a 10x long = about −30% of margin). Prices from Binance, checked every 5 s on the server, even with this page closed. Fees 0.05% each side, funding estimated at 0.01% per 8 h. Liquidation loses the whole margin.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+            <div class="ml-card"><h3 id="ml-pos-h">Open positions</h3><div id="ml-pos"></div></div>
+            <div class="ml-card"><h3 id="ml-hist-h">History</h3><div id="ml-hist" class="ml-hist-wrap"></div></div>
+          </div>
+        </div>
       </div>
       <div id="pt-out"><div class="pt-empty">Loading…</div></div>
     </div>
@@ -3997,7 +4101,7 @@
       if (WL_TIMER) { clearInterval(WL_TIMER); WL_TIMER = null; }
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       const np = document.getElementById('nav-paper'); if (np) np.classList.add('active');
-      ptLoad(); PT_TIMER = setInterval(ptLoad, 15000);
+      ptTab(PT_TAB); PT_TIMER = setInterval(ptLoad, 15000);
       return;
     }
     if (name === 'analyze') {
@@ -4158,6 +4262,7 @@
   function ptPrice(p) { if (!p) return '$0'; if (p >= 1) return '$' + p.toFixed(4); const d = Math.max(2, -Math.floor(Math.log10(p)) + 3); return '$' + p.toFixed(Math.min(d, 12)); }
   function ptAgo(t) { if (!t) return '—'; const m = Math.round((Date.now() - t) / 60000); if (m < 60) return m + 'm'; const h = Math.floor(m / 60); return h < 48 ? h + 'h ' + (m % 60) + 'm' : Math.floor(h / 24) + 'd'; }
   async function ptLoad() {
+    if (PT_TAB === 'man') return; // My leverage tab has its own 5 s refresh
     try {
       if (!AUD_RATE) await fetchFx();
       const j = await (await fetch('/api/paper')).json();
@@ -4232,8 +4337,160 @@
     return h;
   }
   async function ptReset() {
-    if (!confirm('Reset paper trading? This wipes all fake trades and starts all strategies again at US$1,000.')) return;
+    if (!confirm('Reset paper trading? This wipes all fake bot trades and starts all strategies again at US$1,000. Your My leverage account is not touched.')) return;
     await fetch('/api/paper/reset', { method: 'POST' }); setTimeout(ptLoad, 1500);
+  }
+
+  // ─── My leverage: your own paper leverage trades ──────────────────────────
+  let PT_TAB = (function () { try { return localStorage.getItem('pt_tab') === 'man' ? 'man' : 'bots'; } catch (e) { return 'bots'; } })();
+  let ML = null, ML_COIN = null, ML_SIDE = 'long', ML_LEV = 5, ML_BUSY = false;
+  const ML_UNIT = { tp: 'pct', sl: 'pct' };
+  const mlEl = id => document.getElementById(id);
+  function mlPx(p) { if (!(p > 0)) return '—'; if (p >= 1000) return '$' + p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); if (p >= 1) return '$' + p.toFixed(4); return ptPrice(p); }
+  function mlUsd(v, signed) { const s = signed ? ptSign(v) : ''; return s + 'US$' + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  const mlRc = r => r === 'Liquidated' || r === 'Stop loss' ? 'pt-down' : r === 'Take profit' ? 'pt-up' : '';
+  function mlAgo(t) { if (!t) return '—'; const s = Math.round((Date.now() - t) / 1000); return s < 60 ? Math.max(s, 0) + 's' : ptAgo(t); }
+  function ptTab(t) {
+    PT_TAB = t === 'man' ? 'man' : 'bots';
+    try { localStorage.setItem('pt_tab', PT_TAB); } catch (e) {}
+    mlEl('pt-tab-bots').classList.toggle('on', PT_TAB === 'bots'); mlEl('pt-tab-man').classList.toggle('on', PT_TAB === 'man');
+    mlEl('pt-out').style.display = PT_TAB === 'bots' ? '' : 'none';
+    mlEl('ml-wrap').style.display = PT_TAB === 'man' ? '' : 'none';
+    mlEl('pt-hdr-ctl').style.display = PT_TAB === 'bots' ? 'flex' : 'none';
+    mlEl('pt-sub').textContent = PT_TAB === 'bots' ? 'Solana meme coins with fake money, live prices from DexScreener. No real trades.' : 'Your own leverage trades with US$1,000 of fake money, live Binance prices. No real trades.';
+    if (PT_TAB === 'man') mlLoad(); else ptLoad();
+  }
+  setInterval(() => { const v = mlEl('view-paper'); if (PT_TAB === 'man' && v && v.classList.contains('active') && !document.hidden) mlLoad(); }, 5000);
+  async function mlLoad() {
+    try {
+      const j = await (await fetch('/api/manual')).json();
+      if (!j.ok) throw new Error(j.error || 'No data');
+      ML = j; mlRender();
+    } catch (e) { mlEl('ml-status').textContent = 'Could not load: ' + e.message; }
+  }
+  function mlCoin() { return ML && ML.coins.find(c => c.symbol === ML_COIN) || null; }
+  function mlRender() {
+    if (!ML) return;
+    if (!ML_COIN && ML.coins.length) mlPick(ML.coins[0].symbol, true);
+    mlEl('ml-status').textContent = ML.priceAt ? 'Prices ' + mlAgo(ML.priceAt) + ' ago' + (ML.error ? ' · ' + ML.error : '') : (ML.error ? 'Price error: ' + ML.error : 'Loading prices…');
+    const a = ML.account;
+    mlEl('ml-acct').innerHTML = '<div class="ml-acct"><div class="ml-big">Balance<b>' + mlUsd(a.equity) + '</b><span class="' + ptCls(a.pnl) + '" style="font-weight:700">' + ptPct(a.pnlPct) + ' (' + mlUsd(a.pnl, true) + ')</span> since start</div>' +
+      '<div>Cash free<b>' + mlUsd(a.cash) + '</b></div><div>In positions<b>' + mlUsd(a.openValue) + '</b></div>' +
+      '<div>Unrealised P/L<b class="' + ptCls(a.unrealised) + '">' + mlUsd(a.unrealised, true) + '</b></div><div>Realised P/L<b class="' + ptCls(a.realised) + '">' + mlUsd(a.realised, true) + '</b></div>' +
+      '<div>Win rate <small>(' + a.wins + ' of ' + a.trades + ')</small><b>' + (a.winRate == null ? '—' : a.winRate.toFixed(0) + '%') + '</b></div></div>';
+    mlEl('ml-pos-h').textContent = 'Open positions (' + ML.open.length + ')';
+    mlEl('ml-pos').innerHTML = ML.open.length ? ML.open.map(t => {
+      const d = t.side === 'long' ? 1 : -1, liqDist = d * (t.livePrice / t.liqPrice - 1) * 100;
+      return '<div class="ml-pos"><div class="ml-pos-h"><span class="t"><a href="' + ptEsc(t.url) + '" target="_blank" rel="noopener">' + ptEsc(t.symbol) + '</a><span class="ml-tag ' + t.side + '">' + t.side.toUpperCase() + ' ' + t.leverage + 'x</span></span>' +
+        '<div class="ml-pnl ' + ptCls(t.upnl) + '">' + mlUsd(t.upnl, true) + '<div class="mk-aud">' + ptPct(t.pnlPct) + ' of margin</div></div></div>' +
+        '<div class="ml-pos-g"><div>Entry<b>' + mlPx(t.entryPrice) + '</b></div><div>Now<b class="' + ptCls(t.movePct) + '">' + mlPx(t.livePrice) + '</b>' + ptPct((t.livePrice / t.entryPrice - 1) * 100) + ' since entry</div>' +
+        '<div>Size<b>' + mlUsd(t.notional) + '</b></div><div>Margin<b>' + mlUsd(t.margin) + '</b></div>' +
+        '<div>Liquidation<b class="pt-down">' + mlPx(t.liqPrice) + '</b>' + Math.abs(liqDist).toFixed(1) + '% away</div><div>Take profit<b>' + (t.takeProfit ? mlPx(t.takeProfit) : '—') + '</b></div>' +
+        '<div>Stop loss<b>' + (t.stopLoss ? mlPx(t.stopLoss) : '—') + '</b></div><div>Held<b>' + mlAgo(t.openedAt) + '</b>' + (Math.abs(t.funding || 0) >= 0.005 ? 'funding ' + mlUsd(-t.funding, true) : '') + '</div></div>' +
+        '<div class="ml-acts"><button onclick="mlClose(\'' + ptEsc(t.id) + '\',25)">Close 25%</button><button onclick="mlClose(\'' + ptEsc(t.id) + '\',50)">Close 50%</button><button class="all" onclick="mlClose(\'' + ptEsc(t.id) + '\',100)">Close</button></div></div>';
+    }).join('') : '<div class="pt-empty">No open positions. Pick a coin and open a trade.</div>';
+    mlEl('ml-hist-h').textContent = 'History (' + a.trades + ')';
+    mlEl('ml-hist').innerHTML = ML.closed.length ? '<table class="mk-table ml-hist"><thead><tr><th>Coin</th><th class="ml-hide-sm">Why closed</th><th class="ml-hide-sm">Entry</th><th class="ml-hide-sm">Exit</th><th>P/L</th><th>When</th></tr></thead><tbody>' +
+      ML.closed.map(t => '<tr><td><b>' + ptEsc(t.symbol) + '</b><small><span class="' + (t.side === 'long' ? 'pt-up' : 'pt-down') + '">' + t.side.toUpperCase() + '</span> ' + t.leverage + 'x · ' + mlUsd(t.margin) + (t.partial ? ' · ' + ptEsc(t.partial) : '') + '</small></td>' +
+        '<td style="text-align:left" class="ml-hide-sm"><span class="' + mlRc(t.reason) + '">' + ptEsc(t.reason) + '</span></td>' +
+        '<td class="ml-hide-sm">' + mlPx(t.entryPrice) + '</td><td class="ml-hide-sm">' + mlPx(t.exitPrice) + '</td>' +
+        '<td class="' + ptCls(t.pnl) + '"><b>' + mlUsd(t.pnl, true) + '</b><small>' + ptPct(t.pnlPct) + '<span class="ml-show-sm ' + mlRc(t.reason) + '"> · ' + ptEsc(t.reason) + '</span></small></td><td>' + mlAgo(t.exitAt) + ' ago<small>held ' + mlAgo(Date.now() - (t.exitAt - t.openedAt)) + '</small></td></tr>').join('') + '</tbody></table>'
+      : '<div class="pt-empty">No closed trades yet.</div>';
+    const q = mlEl('ml-q'); if (q && document.activeElement !== q && mlCoin()) q.value = mlCoin().symbol + ' · ' + mlCoin().name;
+    mlCalc();
+  }
+  function mlFilter() {
+    if (!ML) return;
+    const q = mlEl('ml-q').value.trim().toLowerCase(), c0 = mlCoin();
+    const all = !q || (c0 && q === (c0.symbol + ' · ' + c0.name).toLowerCase());
+    const list = ML.coins.filter(c => all || c.symbol.toLowerCase().startsWith(q) || c.name.toLowerCase().includes(q)).slice(0, 80);
+    mlEl('ml-drop').innerHTML = list.length ? list.map((c, i) => '<div class="' + (i === 0 && !all ? 'hl' : '') + '" onmousedown="event.preventDefault();mlPick(\'' + ptEsc(c.symbol) + '\')"><span><b>' + ptEsc(c.symbol) + '</b> <span style="color:var(--muted)">' + ptEsc(c.name) + '</span></span><small>' + mlPx(c.price) + '</small></div>').join('') : '<div style="color:var(--muted)">No match in the top 50</div>';
+    mlEl('ml-drop').classList.add('open');
+  }
+  function mlKey(e) {
+    if (e.key === 'Escape') { mlEl('ml-drop').classList.remove('open'); e.target.blur(); }
+    if (e.key === 'Enter') { const q = e.target.value.trim().toLowerCase(); const c = ML && ML.coins.find(c => c.symbol.toLowerCase().startsWith(q) || c.name.toLowerCase().includes(q)); if (c) mlPick(c.symbol); e.target.blur(); }
+  }
+  function mlPick(sym, quiet) {
+    ML_COIN = sym; const c = mlCoin();
+    mlEl('ml-drop').classList.remove('open');
+    if (c) mlEl('ml-q').value = c.symbol + ' · ' + c.name;
+    if (!quiet) mlEl('ml-q').blur();
+    mlCalc();
+  }
+  function mlSide(s) { ML_SIDE = s; mlEl('ml-long').classList.toggle('on', s === 'long'); mlEl('ml-short').classList.toggle('on', s === 'short'); mlCalc(); }
+  function mlLev(v) {
+    ML_LEV = Math.max(1, Math.min(20, Math.round(+v || 1)));
+    mlEl('ml-lev').value = ML_LEV; mlEl('ml-levv').textContent = ML_LEV + 'x';
+    mlEl('ml-levchips').querySelectorAll('button').forEach(b => b.classList.toggle('on', parseInt(b.textContent, 10) === ML_LEV));
+    mlCalc();
+  }
+  function mlPct(p) {
+    if (!ML) return;
+    const fee = ML.settings.feePct / 100, m = Math.floor(ML.account.cash * p / 100 / (1 + ML_LEV * fee) * 100) / 100;
+    mlEl('ml-margin').value = Math.max(0, m); mlCalc();
+  }
+  function mlUnit(k) { ML_UNIT[k] = ML_UNIT[k] === 'pct' ? 'price' : 'pct'; mlEl('ml-' + k + 'u').textContent = ML_UNIT[k] === 'pct' ? '%' : '$'; mlCalc(); }
+  // same maths as the server (manual.js preview), for the live summary before you confirm
+  function mlPreview() {
+    const c = mlCoin(); if (!c || !ML) return null;
+    const S = ML.settings, fee = S.feePct / 100, mmr = S.mmrPct / 100, d = ML_SIDE === 'long' ? 1 : -1, price = c.price;
+    const margin = parseFloat(mlEl('ml-margin').value), lev = ML_LEV;
+    if (!(price > 0) || !(margin > 0)) return { c, price, margin, lev, bad: true };
+    const notional = margin * lev, qty = notional / price, openFee = notional * fee, liq = Math.max(0, price * (1 - d * (1 / lev - mmr)));
+    const lvl = (k, sgn) => { const v = parseFloat(mlEl('ml-' + k).value); if (!(v > 0)) return null; return ML_UNIT[k] === 'pct' ? price * (1 + d * sgn * v / 100) : v; };
+    const tp = lvl('tp', 1), sl = lvl('sl', -1), pnlAt = p => p == null ? null : d * qty * (p - price) - openFee - qty * p * fee;
+    return { c, price, margin, lev, notional, qty, openFee, closeFee: notional * fee, cost: margin + openFee, liq, liqMove: (1 / lev - mmr) * 100, tp, sl, tpPnl: pnlAt(tp), slPnl: pnlAt(sl), d };
+  }
+  function mlCalc() {
+    const p = mlPreview(), go = mlEl('ml-go');
+    go.className = 'ml-go' + (ML_SIDE === 'short' ? ' short' : '');
+    if (!p) { mlEl('ml-sum').innerHTML = ''; go.disabled = true; return; }
+    mlEl('ml-sel').textContent = p.c.symbol + ' now ' + mlPx(p.price) + (ML && ML.priceAt ? ' (Binance, ' + mlAgo(ML.priceAt) + ' ago)' : '');
+    go.textContent = 'Open ' + ML_SIDE + ' ' + p.c.symbol + ' ' + p.lev + 'x';
+    if (p.bad) { mlEl('ml-sum').innerHTML = '<span>Enter a margin</span><b></b>'; go.disabled = true; return; }
+    const warn = (p.tp != null && p.d * (p.tp - p.price) <= 0) ? 'Take profit is on the wrong side of the price' : (p.sl != null && p.d * (p.price - p.sl) <= 0) ? 'Stop loss is on the wrong side of the price' : (p.sl != null && p.d * (p.sl - p.liq) <= 0) ? 'Stop loss is past liquidation' : p.cost > ML.account.cash + 1e-9 ? 'Not enough cash' : '';
+    const row = (k, v, cls) => '<span>' + k + '</span><b' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</b>';
+    mlEl('ml-sum').innerHTML = row('Entry (about)', mlPx(p.price)) + row('Position size', mlUsd(p.notional) + ' <span style="color:var(--muted)">(' + (+p.qty.toPrecision(4)).toLocaleString() + ' ' + ptEsc(p.c.symbol) + ')</span>') +
+      row('Liquidation', mlPx(p.liq) + ' <span style="color:var(--muted)">' + (p.d > 0 ? '−' : '+') + p.liqMove.toFixed(1) + '%</span>', 'pt-down') +
+      row('Fees', mlUsd(p.openFee) + ' open + ' + mlUsd(p.closeFee) + ' close') + row('Cash needed', mlUsd(p.cost) + ' <span style="color:var(--muted)">of ' + mlUsd(ML.account.cash) + '</span>', p.cost > ML.account.cash ? 'pt-down' : '') +
+      (p.tp != null ? row('Take profit', mlPx(p.tp) + ' → ' + mlUsd(p.tpPnl, true), 'pt-up') : '') + (p.sl != null ? row('Stop loss', mlPx(p.sl) + ' → ' + mlUsd(p.slPnl, true), 'pt-down') : '') +
+      (warn ? '<span class="pt-down" style="grid-column:1/-1">' + warn + '</span>' : '');
+    go.disabled = !!warn || ML_BUSY;
+  }
+  async function mlPost(path, body) {
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Cipher': '1' }, body: JSON.stringify(body || {}) });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+  function mlMsg(t, ok) { const m = mlEl('ml-msg'); m.textContent = t; m.className = 'ml-msg ' + (ok ? 'ok' : 'err'); }
+  async function mlOpen() {
+    const p = mlPreview(); if (!p || p.bad || ML_BUSY) return;
+    const lines = ['Open ' + ML_SIDE.toUpperCase() + ' ' + p.c.symbol + ' at ' + p.lev + 'x?', '', 'Entry: about ' + mlPx(p.price) + ' (filled at the live price)', 'Position size: ' + mlUsd(p.notional) + ' (margin ' + mlUsd(p.margin) + ')',
+      'Liquidation: about ' + mlPx(p.liq), 'Fees: ' + mlUsd(p.openFee) + ' to open, about ' + mlUsd(p.closeFee) + ' to close',
+      'Take profit: ' + (p.tp != null ? mlPx(p.tp) : 'none'), 'Stop loss: ' + (p.sl != null ? mlPx(p.sl) : 'none'), '', 'Paper money only.'];
+    if (!confirm(lines.join('\n'))) return;
+    ML_BUSY = true; mlCalc(); mlMsg('Opening…', true);
+    try {
+      const tpv = mlEl('ml-tp').value, slv = mlEl('ml-sl').value;
+      const j = await mlPost('/api/manual/open', { symbol: p.c.symbol, side: ML_SIDE, leverage: p.lev, margin: p.margin,
+        tp: tpv ? { type: ML_UNIT.tp, value: tpv } : null, sl: slv ? { type: ML_UNIT.sl, value: slv } : null });
+      mlMsg('Opened ' + ML_SIDE + ' ' + p.c.symbol + ' ' + p.lev + 'x at ' + mlPx(j.position.entryPrice) + '.', true);
+      mlEl('ml-tp').value = ''; mlEl('ml-sl').value = '';
+      ML = j;
+    } catch (e) { mlMsg(e.message); }
+    ML_BUSY = false; mlRender();
+  }
+  async function mlClose(id, pct) {
+    const t = ML && ML.open.find(x => x.id === id); if (!t) return;
+    if (!confirm((pct >= 100 ? 'Close ' : 'Close ' + pct + '% of ') + t.side + ' ' + t.symbol + ' ' + t.leverage + 'x at the live price?\nP/L right now: ' + mlUsd(t.upnl * pct / 100, true) + ' (about)')) return;
+    try { const j = await mlPost('/api/manual/close', { id, pct }); mlMsg('Closed ' + (pct < 100 ? pct + '% of ' : '') + t.symbol + ': ' + mlUsd(j.trade.pnl, true) + '.', j.trade.pnl >= 0); ML = j; mlRender(); }
+    catch (e) { mlMsg(e.message); }
+  }
+  async function mlReset() {
+    if (!confirm('Reset My leverage?\n\nThis drops your open positions, clears your history and puts the balance back to US$1,000. The bot strategies are not touched.')) return;
+    try { ML = await mlPost('/api/manual/reset'); mlMsg('Account reset to US$1,000.', true); mlRender(); } catch (e) { mlMsg(e.message); }
   }
 
   // ─── Analyze tab ─────────────────────────────────────────────────────────
