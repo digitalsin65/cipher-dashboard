@@ -65,4 +65,96 @@ assert.strictEqual(C.majoritySold(sells, 'X', ['W1'], now - 30 * min).majority, 
 // ---- candidate wallets from pump trades ----
 const tr = (w, kind, usd) => ({ attributes: { tx_from_address: w, kind, volume_in_usd: String(usd) } });
 assert.deepStrictEqual(C.candidatesFromTrades([tr('A', 'sell', 150), tr('A', 'sell', 100), tr('B', 'sell', 900), tr('C', 'buy', 5000), tr('D', 'sell', 50)]), ['B', 'A']);
-console.log('copy wallets: all tests passed');
+
+// candidates: sellers who put more in than they took out (in the visible trades) are skipped
+assert.deepStrictEqual(C.candidatesFromTrades([tr('A', 'sell', 300), tr('A', 'buy', 5000), tr('B', 'sell', 400), tr('B', 'buy', 100), tr('E', 'sell', 250)]), ['B', 'E']);
+assert.deepStrictEqual(C.interleave([['a1', 'a2', 'a3'], ['b1'], ['c1', 'a1', 'c2']]), ['a1', 'b1', 'c1', 'a2', 'a3', 'c2'], 'one coin can\'t fill the queue; duplicates once');
+
+// ---- history check: throwaway wallets and bots are caught from the signature list alone ----
+const NOWS = 1_800_000_000; // seconds
+const sigList = (n, spanDays) => Array.from({ length: n }, (_, i) => ({ signature: 'S' + i, err: null, blockTime: NOWS - Math.round(i / Math.max(n - 1, 1) * spanDays * 86400) }));
+let h = C.historyCheck(sigList(12, 0.5), NOWS * 1000); assert.ok(h.fresh && !h.bot, 'burner: 12 tx over half a day');
+h = C.historyCheck(sigList(120, 1), NOWS * 1000); assert.ok(h.fresh, 'busy but only a day old');
+h = C.historyCheck(sigList(1000, 1), NOWS * 1000); assert.ok(h.bot && !h.fresh, '1000 tx in a day = bot'); assert.ok(h.txPerDay > 300);
+h = C.historyCheck(sigList(400, 8), NOWS * 1000); assert.ok(!h.fresh && !h.bot, 'established trader'); near(h.txPerDay, 50, 'tx/day', 0.1);
+h = C.historyCheck(sigList(1000, 30), NOWS * 1000); assert.ok(!h.fresh && !h.bot, '1000 tx over 30 days: fine');
+
+// ---- rejection reasons (in order) and drop reasons ----
+const base = { txPerDay: 40, trades: 25, winRate: 60, pnlSol: 3 };
+assert.strictEqual(C.rejectReason(base), null);
+assert.strictEqual(C.rejectReason({ ...base, bot: true }), 'bot');
+assert.strictEqual(C.rejectReason({ ...base, txPerDay: 400 }), 'bot');
+assert.strictEqual(C.rejectReason({ ...base, fresh: true, trades: 0 }), 'fresh');
+assert.ok(!C.qualifies({ ...base, fresh: true }), 'fresh wallets never qualify');
+assert.strictEqual(C.rejectReason({ ...base, trades: 0, buys: 0, unboughtSells: 40 }), 'insider', 'sells only coins it never bought');
+assert.strictEqual(C.rejectReason({ ...base, trades: 5, buys: 10, unboughtSells: 12 }), 'fewTrades', 'some unbought sells but also buys: just too few trades');
+assert.strictEqual(C.rejectReason({ ...base, trades: 19 }), 'fewTrades');
+assert.strictEqual(C.rejectReason({ ...base, winRate: 70, pnlSol: -1 }), 'losing');
+assert.strictEqual(C.rejectReason({ ...base, winRate: 50 }), 'lowWin');
+assert.ok(C.REASONS.fresh && C.REASONS.insider && C.REASONS.fewTrades && C.REASONS.losing && C.REASONS.lowWin && C.REASONS.bot);
+assert.strictEqual(C.dropReason(base), null);
+assert.match(C.dropReason({ ...base, pnlSol: -0.1 }), /losing/);
+assert.match(C.dropReason({ ...base, winRate: 40 }), /win rate/);
+assert.match(C.dropReason({ ...base, bot: true }), /bot/);
+// scoreSwaps counts sells of coins never bought in the window
+sc = C.scoreSwaps([sw('Z', 'sell', 10, 1, 1), sw('Z', 'sell', 10, 1, 2), sw('Y', 'buy', 5, 1, 3)]);
+assert.strictEqual(sc.unboughtSells, 2); assert.strictEqual(sc.buys, 1);
+
+// ---- engine, end to end with a fake Solana RPC: rejection reasons, watchlist, re-score drops ----
+(async () => {
+  C.W.rpcGapMs = 0;
+  const nowMs = Date.now(), nowS = Math.floor(nowMs / 1000);
+  let goodWins = true; // flips to make the GOOD wallet a loser on its re-check
+  const sigsFor = (w, n, spanDays) => Array.from({ length: n }, (_, i) => ({ signature: w + '-' + i, err: null, blockTime: nowS - 60 - Math.round(i / Math.max(n - 1, 1) * spanDays * 86400) }));
+  const SIGS = { FRESHW: sigsFor('FRESHW', 9, 0.4), BOTW: sigsFor('BOTW', 1000, 0.5), GOODW: sigsFor('GOODW', 60, 10), DUMPW: sigsFor('DUMPW', 60, 10) };
+  const swapTx = (w, i) => { // GOODW: 30 round trips on 30 coins, 2 txs each (buy then sell); 20 of 30 win
+    const k = Math.floor(i / 2), isSell = i % 2 === 0, mint = 'M' + k, win = goodWins ? k % 3 !== 0 : k % 3 === 0;
+    const solDelta = w === 'DUMPW' ? 2e9 : isSell ? (win ? 1.5e9 : 0.5e9) : -1e9;
+    const pre = w === 'DUMPW' || isSell ? [bal(mint, w, 1000)] : [], post = w === 'DUMPW' || isSell ? [bal(mint, w, 0)] : [bal(mint, w, 1000)];
+    return { blockTime: SIGS[w][i].blockTime, meta: { err: null, fee: 0, preBalances: [10e9, 0], postBalances: [10e9 + solDelta, 0], preTokenBalances: pre, postTokenBalances: post }, transaction: { signatures: [w + '-' + i], message: { accountKeys: [{ pubkey: w }, { pubkey: 'POOL' }] } } };
+  };
+  global.fetch = async (url, opts) => {
+    const ok = j => ({ ok: true, status: 200, json: async () => j });
+    if (!String(url).includes('fake-rpc')) return ok([]); // DexScreener etc.
+    const { method, params } = JSON.parse(opts.body);
+    if (method === 'getSignaturesForAddress') return ok({ result: SIGS[params[0]] || [] });
+    const [w, i] = params[0].split('-'); return ok({ result: swapTx(w, +i) });
+  };
+  const S = { copy: { queue: ['FRESHW', 'BOTW', 'GOODW', 'DUMPW'], lastDiscover: nowMs } };
+  let saves = 0;
+  const eng = C.createCopy({ getS: () => S, save: () => saves++, isLeader: () => true, syncFromDisk: () => {}, gtGet: async () => ({ data: [] }), rpcUrl: 'http://fake-rpc' });
+  for (let i = 0; i < 10 && (S.copy.queue.length || S.copy.job); i++) await eng.tick();
+  let inf = eng.info();
+  assert.deepStrictEqual(inf.watch.map(x => x.wallet), ['GOODW'], 'good wallet watched');
+  assert.strictEqual(inf.watch[0].trades, 30); near(inf.watch[0].winRate, 200 / 3, 'win rate', 1e-6);
+  assert.deepStrictEqual(inf.reasons, { fresh: 1, bot: 1, insider: 1 }, 'reasons counted');
+  assert.ok(S.copy.budget.calls > 0 && inf.budget.of === C.W.dailyCalls, 'calls counted against the daily budget');
+  assert.ok(saves > 0 && S.copy.watch.GOODW, 'watchlist lives in the saved paper state');
+  // three days later GOOD turns into a loser: re-scored and dropped with a reason
+  S.copy.watch.GOODW.scoredAt = S.copy.scored.GOODW.scoredAt = nowMs - 4 * 86400e3; S.copy.lastPoll = 0;
+  goodWins = false;
+  for (let i = 0; i < 10; i++) { await eng.tick(); if (!S.copy.queue.length && !S.copy.job && !S.copy.watch.GOODW) break; }
+  inf = eng.info();
+  assert.strictEqual(inf.watch.length, 0, 'dropped from the watchlist');
+  assert.strictEqual(inf.dropped[0].wallet, 'GOODW'); assert.match(inf.dropped[0].dropReason, /losing|win rate/);
+  assert.strictEqual(inf.reasons.lowWin || inf.reasons.losing, 1, 'and now counted as rejected');
+
+  // ---- paper file safety: an unreadable file falls back to the hourly backup; Reset keeps the wallet research ----
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const F = path.join(os.tmpdir(), 'paper-wallettest-' + process.pid + '.json');
+  fs.writeFileSync(F, '{"strategies": {"fresh": {"cash": 1'); // half-written
+  fs.writeFileSync(F + '.bak', JSON.stringify({ started: 1, seen: {}, strategies: { fresh: { cash: 777, open: [], closed: [] } }, copy: { watch: { GOODW: { wallet: 'GOODW', pnlSol: 1 } }, scored: {} } }));
+  process.env.PAPER_FILE = F;
+  global.__PAPER_TIMERS = []; // don't start the trading timers
+  const pt = require('./papertrade');
+  assert.strictEqual(pt._state().strategies.fresh.cash, 777, 'restored from backup instead of starting blank');
+  assert.ok(fs.readdirSync(os.tmpdir()).some(f => f.startsWith('paper-wallettest-' + process.pid + '.json.unreadable-')), 'unreadable file kept');
+  const routes = {}; pt({ get: () => {}, post: (p, fn) => { routes[p] = fn; } });
+  routes['/api/paper/reset']({}, { json: () => {} });
+  assert.strictEqual(pt._state().strategies.fresh.cash, 1000, 'trades reset');
+  assert.ok(pt._state().copy.watch.GOODW, 'watched wallets survive a Reset');
+  assert.ok(fs.readdirSync(os.tmpdir()).some(f => f.startsWith('paper-wallettest-' + process.pid + '.json.before-reset-')), 'copy kept before Reset');
+  for (const f of fs.readdirSync(os.tmpdir())) if (f.startsWith('paper-wallettest-' + process.pid)) fs.unlinkSync(path.join(os.tmpdir(), f));
+  console.log('copy wallets: all tests passed');
+  process.exit(0);
+})().catch(e => { console.error(e); process.exit(1); });

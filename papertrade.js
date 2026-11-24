@@ -244,10 +244,22 @@ function blank() {
   for (const k of Object.keys(STRATS)) s.strategies[k] = { cash: START_BALANCE, open: [], closed: [] };
   return s;
 }
-function load() {
+// Read the saved file. If it exists but can't be read (half-written, disk error), keep a copy of it and fall back to the
+// hourly backup, so one bad read can never wipe the history. With keepOnError, return null instead (the caller keeps what it has).
+function readSaved(f) { const s = JSON.parse(fs.readFileSync(f, 'utf8')); if (!s || !s.strategies) throw new Error('no strategies in ' + f); return s; }
+function load(keepOnError) {
   let s;
-  try { s = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch (e) { return blank(); }
-  if (!s || !s.strategies) return blank();
+  if (!fs.existsSync(FILE)) {
+    try { s = readSaved(FILE + '.bak'); console.warn('[paper] data file missing, restored from the hourly backup'); } catch (e) { return keepOnError ? null : blank(); }
+  } else {
+    try { s = readSaved(FILE); }
+    catch (e) {
+      if (keepOnError) return null;
+      console.warn('[paper] could not read data file:', e.message);
+      try { fs.copyFileSync(FILE, FILE + '.unreadable-' + Date.now()); } catch (e2) {}
+      try { s = readSaved(FILE + '.bak'); console.warn('[paper] restored from the hourly backup'); } catch (e2) { return blank(); }
+    }
+  }
   // upgrades to saved data; a failure here must never wipe the saved trades
   try {
     for (const k of Object.keys(STRATS)) if (!s.strategies[k]) s.strategies[k] = { cash: START_BALANCE, open: [], closed: [], startedAt: Date.now() };
@@ -259,12 +271,19 @@ function load() {
   } catch (e) { console.warn('[paper] upgrading saved data failed', e.message); }
   return s;
 }
-let lastWriteMs = 0; // mtime of the file as we last wrote or read it
-function save() { try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE + '.tmp', JSON.stringify(S)); fs.renameSync(FILE + '.tmp', FILE); lastWriteMs = fs.statSync(FILE).mtimeMs; } catch (e) { console.warn('[paper] save failed', e.message); } }
+let lastWriteMs = 0, lastBackup = 0; // mtime of the file as we last wrote or read it; when we last made the hourly backup
+function save() {
+  try {
+    fs.mkdirSync(path.dirname(FILE), { recursive: true });
+    // hourly backup of the last good file (papertrade.json.bak), used if the main file is ever lost or unreadable
+    if (Date.now() - lastBackup > 3600e3) { try { readSaved(FILE); fs.copyFileSync(FILE, FILE + '.bak'); } catch (e) {} lastBackup = Date.now(); }
+    fs.writeFileSync(FILE + '.tmp', JSON.stringify(S)); fs.renameSync(FILE + '.tmp', FILE); lastWriteMs = fs.statSync(FILE).mtimeMs;
+  } catch (e) { console.warn('[paper] save failed', e.message); }
+}
 // The host can run more than one copy of the server. Each copy re-reads the file when another copy
 // changed it (for example a Reset), so an old copy can't write stale numbers back over it.
 function syncFromDisk() {
-  try { const m = fs.statSync(FILE).mtimeMs; if (m > lastWriteMs) { S = load(); lastWriteMs = m; } } catch (e) {}
+  try { const m = fs.statSync(FILE).mtimeMs; if (m > lastWriteMs) { const s = load(true); if (s) { S = s; lastWriteMs = m; } } } catch (e) {}
 }
 // Only one copy trades at a time; the others just read. The lock goes stale after 90 s if that copy dies.
 const LOCK = FILE + '.lock', ME = process.pid + '-' + Math.random().toString(36).slice(2);
@@ -529,7 +548,14 @@ module.exports = function mountPaper(app) {
       settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, freshPositionUsd: STRATS.fresh.positionUsd, breakEvenAtPct: BE_TRIGGER * 100, trailPct: TRAIL * 100, cooldownH: COOLDOWN_H, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
       strategies: summary() });
   });
-  app.post('/api/paper/reset', (req, res) => { S = blank(); save(); setTimeout(scan, 500); res.json({ ok: true }); });
+  // Reset wipes the fake trades only. A copy of the old file is kept, and the copy-wallets research (scored and watched
+  // wallets) carries over, since it isn't trading history and takes days to rebuild.
+  app.post('/api/paper/reset', (req, res) => {
+    try { if (fs.existsSync(FILE)) fs.copyFileSync(FILE, FILE + '.before-reset-' + Date.now()); } catch (e) {}
+    const keep = S.copy; S = blank();
+    if (keep) S.copy = { ...keep, buys: [], sells: [], job: null };
+    save(); setTimeout(scan, 500); res.json({ ok: true });
+  });
 };
 module.exports._checkPrices = checkPrices; // used by tests
 module.exports._scan = scan; // used by tests
@@ -542,3 +568,4 @@ module.exports._onCooldown = onCooldown; // used by tests
 module.exports._pruneCooldowns = pruneCooldowns; // used by tests
 module.exports._STRATS = STRATS; // used by tests
 module.exports._copy = copy; // used by tests
+module.exports._state = () => S; // used by tests
