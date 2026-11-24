@@ -360,6 +360,7 @@
   .center-col { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; overflow: hidden; }
   .right-col { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: visible; }
   #right-crypto, #right-nft { flex-direction: column; gap: 16px; min-width: 0; }
+  #view-crypto > * + * { margin-top: 14px; } /* space between the cards, panels in this view are blocks, not flex children */
   .right-col .panel { min-width: 0; box-sizing: border-box; }
 
   /* Stat Cards Row */
@@ -928,16 +929,14 @@
     #alerts-panel div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
     #view-wallet .wl-card { min-width: calc(50% - 5px); }
   }
-  /* Latest crypto news (Overview) */
-  .crypto-news {
-    max-height: 440px;
-    overflow-y: auto;
-    margin: 0 -2px 0 0;
-    padding-right: 6px;
-  }
+  /* Latest crypto news (Overview > News tab) */
+  .crypto-news { margin: 0; }
+  .crypto-news-head { display: inline-flex; align-items: center; gap: 12px; }
+  #crypto-news-updated { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+  .crypto-news-desc { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--muted2); }
   .crypto-news-item {
     display: block;
-    padding: 11px 0;
+    padding: 14px 0;
     border-bottom: 1px solid var(--border);
     text-decoration: none;
     color: inherit;
@@ -946,7 +945,7 @@
   .crypto-news-item:hover .crypto-news-title { color: var(--cyan); }
   .crypto-news-title {
     font-family: 'Syne', sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text);
     line-height: 1.4;
@@ -982,8 +981,9 @@
   }
   a.crypto-news-source:hover { text-decoration: underline; }
   @media (max-width: 900px) {
-    .crypto-news { max-height: 360px; }
-    .crypto-news-title { font-size: 13px; }
+    .crypto-news-title { font-size: 14px; }
+    .crypto-news-desc { font-size: 12px; }
+    #crypto-news-updated { display: none; }
     #crypto-news-panel { scroll-margin-top: 66px; }
   }
 
@@ -1107,6 +1107,15 @@
   .ml-acts { display: flex; gap: 6px; margin-top: 10px; justify-content: flex-end; flex-wrap: wrap; }
   .ml-acts button { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); font: inherit; font-size: 12px; cursor: pointer; }
   .ml-acts button.all { border-color: rgba(239,68,68,.45); color: #ef4444; font-weight: 600; }
+  .ml-asset { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border: 1px solid var(--border2); border-radius: 10px; margin-bottom: 14px; }
+  .ml-asset button { padding: 8px; border: 0; border-radius: 7px; background: transparent; color: var(--muted2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .ml-asset button.on { background: rgba(0,245,196,.12); color: var(--cyan); }
+  .ml-grp { cursor: default !important; color: var(--muted) !important; font-size: 10px !important; text-transform: uppercase; letter-spacing: .08em; padding: 8px 12px 4px !important; background: transparent !important; }
+  .ml-mkt { margin-top: 6px; font-size: 12px; line-height: 1.4; padding: 7px 10px; border-radius: 8px; }
+  .ml-mkt.open { color: #22c55e; background: rgba(34,197,94,.08); } .ml-mkt.shut { color: #f5a524; background: rgba(245,165,36,.08); }
+  .ml-closed { margin-top: 10px; font-size: 11px; color: #f5a524; line-height: 1.4; }
+  .ml-tag.ml-kind { background: transparent; border: 1px solid var(--border2); color: var(--muted2); font-weight: 600; font-size: 10px; }
+  .ml-acts button:disabled { opacity: .4; cursor: default; }
   .ml-hist-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .ml-hist td small { display: block; color: var(--muted); font-size: 11px; }
   .ml-show-sm { display: none; }
@@ -1121,6 +1130,7 @@
     .ml-hide-sm { display: none; }
     .ml-show-sm { display: inline; }
     .ml-hist td, .ml-hist th { padding: 8px 8px; font-size: 12px; }
+    .mk-table.ml-hist { display: table; }
     .ml-in { font-size: 16px; } /* stops iPhone zooming into inputs */
   }
 </style>
@@ -1277,6 +1287,7 @@
           <button class="pill-btn primary" id="view-btn-all"    onclick="switchMainView('all')">All Assets</button>
           <button class="pill-btn ghost"   id="view-btn-fav"    onclick="switchMainView('fav')">&#9733; Favourites</button>
           <button class="pill-btn ghost"   id="view-btn-nft"    onclick="switchMainView('nft')">NFTs</button>
+          <button class="pill-btn ghost"   id="view-btn-news"   onclick="switchMainView('news')">News</button>
         </div>
 
         <!-- ═══ CRYPTO VIEW (All Assets / DeFi / Layer1 / Stablecoins) ═══ -->
@@ -1284,6 +1295,18 @@
           <div class="mk-sub" id="fav-status" style="margin:4px 0 12px">Star any coin in Markets to add it here.</div>
           <table class="mk-table mk-pin"><thead><tr><th></th><th>Coin</th><th>Price</th><th>24h</th><th>7d</th><th>7d chart</th><th>Market cap</th></tr></thead>
           <tbody id="fav-body"></tbody></table>
+        </div>
+        <!-- ═══ NEWS VIEW (CoinDesk headlines) ═══ -->
+        <div id="view-news" style="display:none">
+          <div class="panel" id="crypto-news-panel">
+            <div class="panel-title">
+              Latest crypto news
+              <span class="crypto-news-head"><span id="crypto-news-updated"></span><a class="crypto-news-source" href="https://www.coindesk.com/latest-crypto-news" target="_blank" rel="noopener noreferrer">Source: CoinDesk</a></span>
+            </div>
+            <div class="crypto-news" id="crypto-news-list">
+              <div class="crypto-news-status">Loading latest headlines...</div>
+            </div>
+          </div>
         </div>
         <div id="view-crypto">
 
@@ -1411,17 +1434,6 @@
                 <div class="donut-pct">30%</div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Latest crypto news (CoinDesk) -->
-        <div class="panel" id="crypto-news-panel" style="animation-delay:0.35s">
-          <div class="panel-title">
-            Latest news
-            <span><a class="crypto-news-source" href="https://www.coindesk.com/latest-crypto-news" target="_blank" rel="noopener noreferrer">Source: CoinDesk</a></span>
-          </div>
-          <div class="crypto-news" id="crypto-news-list">
-            <div class="crypto-news-status">Loading latest headlines...</div>
           </div>
         </div>
 
@@ -1961,9 +1973,11 @@
         <div class="ml-grid">
           <div class="ml-card" id="ml-ticket">
             <h3>New trade</h3>
-            <label class="ml-lbl" for="ml-q" style="margin-top:0">Coin</label>
+            <div class="ml-asset"><button id="ml-a-crypto" class="on" onclick="mlAsset('crypto')">Crypto</button><button id="ml-a-stock" onclick="mlAsset('stock')">Stocks</button></div>
+            <label class="ml-lbl" for="ml-q" id="ml-qlbl">Coin</label>
             <div class="ml-coin"><input id="ml-q" class="ml-in" onblur="setTimeout(() => mlEl('ml-drop').classList.remove('open'), 150)" placeholder="Search BTC, ETH, SOL…" autocomplete="off" oninput="mlFilter()" onfocus="mlFilter()" onkeydown="mlKey(event)"><div class="ml-drop" id="ml-drop"></div></div>
             <div class="ml-sel" id="ml-sel"></div>
+            <div class="ml-mkt" id="ml-mkt" style="display:none"></div>
             <span class="ml-lbl">Direction</span>
             <div class="ml-side"><button class="long on" id="ml-long" onclick="mlSide('long')">Long ↑</button><button class="short" id="ml-short" onclick="mlSide('short')">Short ↓</button></div>
             <span class="ml-lbl">Leverage</span>
@@ -1979,7 +1993,7 @@
             <div class="ml-sum" id="ml-sum"></div>
             <button class="ml-go" id="ml-go" onclick="mlOpen()">Open long</button>
             <div class="ml-msg" id="ml-msg"></div>
-            <div class="ml-warn">% for take profit and stop loss is the price move from your entry (e.g. 3% stop on a 10x long = about −30% of margin). Prices from Binance, checked every 5 s on the server, even with this page closed. Fees 0.05% each side, funding estimated at 0.01% per 8 h. Liquidation loses the whole margin.</div>
+            <div class="ml-warn">% for take profit and stop loss is the price move from your entry (e.g. 3% stop on a 10x long = about −30% of margin). The server checks every 5 s, even with this page closed. Liquidation loses the whole margin.<br><b>Crypto:</b> Binance prices, 1x to 20x, fees 0.05% each side, funding about 0.01% per 8 h.<br><b>Stocks:</b> Yahoo Finance prices (ASX about 20 min delayed), 1x to 5x, fees 0.1% each side, financing 0.02% of the position per night held (weekends count). Trades only while the market is open (US 9:30 am to 4 pm New York, ASX 10 am to 4 pm Sydney). If a stock opens past your stop or take profit, it fills at the opening price.</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
             <div class="ml-card"><h3 id="ml-pos-h">Open positions</h3><div id="ml-pos"></div></div>
@@ -3013,7 +3027,7 @@
 
   function switchMainView(view) {
     // Update pill buttons
-    ['all','fav','nft'].forEach(k => {
+    ['all','fav','nft','news'].forEach(k => {
       const btn = document.getElementById('view-btn-' + k);
       if (btn) btn.className = k === view ? 'pill-btn primary' : 'pill-btn ghost';
     });
@@ -3021,6 +3035,17 @@
     const isNft = view === 'nft';
     const isFav = view === 'fav';
     document.getElementById('view-fav').style.display = isFav ? 'block' : 'none';
+    const isNews = view === 'news';
+    document.getElementById('view-news').style.display = isNews ? 'block' : 'none';
+    if (isNews) {
+      document.getElementById('view-crypto').style.display = 'none';
+      document.getElementById('view-nft').style.display = 'none';
+      document.getElementById('right-crypto').style.display = 'flex';
+      document.getElementById('right-nft').style.display = 'none';
+      // fetch on first open, then whenever it's older than 5 minutes (the timer below keeps it fresh while open)
+      if (!NEWS_AT || Date.now() - NEWS_AT > 5 * 60 * 1000) loadCryptoNews();
+      return;
+    }
     if (isFav) {
       document.getElementById('view-crypto').style.display = 'none';
       document.getElementById('view-nft').style.display = 'none';
@@ -4201,6 +4226,7 @@
     const d = Math.round(ms / 86400000);
     return d + 'd ago';
   }
+  let NEWS_AT = 0; // when the headlines were last loaded
   async function loadCryptoNews() {
     const el = document.getElementById('crypto-news-list');
     if (!el) return;
@@ -4211,13 +4237,14 @@
       const res = await fetch('/api/news');
       const json = await res.json();
       if (!json.ok || !Array.isArray(json.items) || !json.items.length) throw new Error(json.error || 'No headlines');
-      const rows = json.items.slice(0, 10).map(n => {
+      const rows = json.items.map(n => {
         const href = newsSafeUrl(n.link);
         if (!href) return '';
         const cat = n.category ? '<span class="crypto-news-cat">' + newsEsc(n.category) + '</span>' : '';
         const time = newsAgo(n.published);
         return '<a class="crypto-news-item" href="' + newsEsc(href) + '" target="_blank" rel="noopener noreferrer">' +
           '<div class="crypto-news-title">' + newsEsc(n.title || '') + '</div>' +
+          (n.description ? '<div class="crypto-news-desc">' + newsEsc(n.description) + '</div>' : '') +
           '<div class="crypto-news-meta">' + cat + (time ? '<span>' + newsEsc(time) + '</span>' : '') + '</div>' +
         '</a>';
       }).join('');
@@ -4225,6 +4252,9 @@
       const stale = json.stale ? '<div class="crypto-news-status warn">Could not refresh. Showing the last headlines we have.</div>' : '';
       el.innerHTML = stale + rows;
       el.dataset.loaded = '1';
+      NEWS_AT = Date.now();
+      const up = document.getElementById('crypto-news-updated');
+      if (up) up.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     } catch (e) {
       if (!el.dataset.loaded) {
         el.innerHTML = '<div class="crypto-news-status">Could not load CoinDesk news. It will retry automatically.</div>';
@@ -4242,8 +4272,8 @@
   fetchFx();
   setInterval(fetchFx, 3600000);
   loadOverviewNFTs();
-  loadCryptoNews();
-  setInterval(loadCryptoNews, 5 * 60 * 1000);
+  // News tab: refresh every 5 min, only while it's on screen
+  setInterval(() => { const v = document.getElementById('view-news'); if (v && v.style.display !== 'none' && v.offsetParent && !document.hidden) loadCryptoNews(); }, 5 * 60 * 1000);
 </script>
 <script>
   // ─── Paper Trading tab ─────────────────────────────────────────────────────
@@ -4341,15 +4371,21 @@
     await fetch('/api/paper/reset', { method: 'POST' }); setTimeout(ptLoad, 1500);
   }
 
-  // ─── My leverage: your own paper leverage trades ──────────────────────────
+  // ─── My leverage: your own paper leverage trades (crypto and stocks) ──────
   let PT_TAB = (function () { try { return localStorage.getItem('pt_tab') === 'man' ? 'man' : 'bots'; } catch (e) { return 'bots'; } })();
-  let ML = null, ML_COIN = null, ML_SIDE = 'long', ML_LEV = 5, ML_BUSY = false;
+  let ML_ASSET = (function () { try { return localStorage.getItem('ml_asset') === 'stock' ? 'stock' : 'crypto'; } catch (e) { return 'crypto'; } })();
+  let ML = null, ML_COIN = null, ML_STOCK = 'AAPL', ML_SIDE = 'long', ML_LEV = 5, ML_BUSY = false, ML_LOOKUP = null;
   const ML_UNIT = { tp: 'pct', sl: 'pct' };
   const mlEl = id => document.getElementById(id);
-  function mlPx(p) { if (!(p > 0)) return '—'; if (p >= 1000) return '$' + p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); if (p >= 1) return '$' + p.toFixed(4); return ptPrice(p); }
+  const mlCur = c => (c === 'AUD' ? 'A$' : '$');
+  function mlPx(p, cur, stock) { const k = mlCur(cur); if (!(p > 0)) return '—'; if (p >= 1000) return k + p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); if (p >= 1) return k + p.toFixed(stock || p >= 100 ? 2 : 4); return ptPrice(p).replace('$', k); }
   function mlUsd(v, signed) { const s = signed ? ptSign(v) : ''; return s + 'US$' + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   const mlRc = r => r === 'Liquidated' || r === 'Stop loss' ? 'pt-down' : r === 'Take profit' ? 'pt-up' : '';
   function mlAgo(t) { if (!t) return '—'; const s = Math.round((Date.now() - t) / 1000); return s < 60 ? Math.max(s, 0) + 's' : ptAgo(t); }
+  function mlIn(t) { const m = Math.max(0, Math.round((t - Date.now()) / 60000)); const h = Math.floor(m / 60); return h >= 24 ? Math.floor(h / 24) + 'd ' + (h % 24) + 'h' : h ? h + 'h ' + (m % 60) + 'm' : m + 'm'; }
+  const mlSyd = t => t ? new Date(t).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  const mlTag = t => '<span class="ml-tag ml-kind">' + (t.asset === 'stock' ? 'STOCK' : 'CRYPTO') + '</span>';
+  const mlLim = () => ML ? (ML_ASSET === 'stock' ? ML.settings.stock : ML.settings) : { minLev: 1, maxLev: ML_ASSET === 'stock' ? 5 : 20 };
   function ptTab(t) {
     PT_TAB = t === 'man' ? 'man' : 'bots';
     try { localStorage.setItem('pt_tab', PT_TAB); } catch (e) {}
@@ -4357,22 +4393,45 @@
     mlEl('pt-out').style.display = PT_TAB === 'bots' ? '' : 'none';
     mlEl('ml-wrap').style.display = PT_TAB === 'man' ? '' : 'none';
     mlEl('pt-hdr-ctl').style.display = PT_TAB === 'bots' ? 'flex' : 'none';
-    mlEl('pt-sub').textContent = PT_TAB === 'bots' ? 'Solana meme coins with fake money, live prices from DexScreener. No real trades.' : 'Your own leverage trades with US$1,000 of fake money, live Binance prices. No real trades.';
-    if (PT_TAB === 'man') mlLoad(); else ptLoad();
+    mlEl('pt-sub').textContent = PT_TAB === 'bots' ? 'Solana meme coins with fake money, live prices from DexScreener. No real trades.' : 'Your own leverage trades on crypto and stocks with US$1,000 of fake money. No real trades.';
+    if (PT_TAB === 'man') { mlAsset(ML_ASSET, true); mlLoad(); } else ptLoad();
   }
   setInterval(() => { const v = mlEl('view-paper'); if (PT_TAB === 'man' && v && v.classList.contains('active') && !document.hidden) mlLoad(); }, 5000);
   async function mlLoad() {
     try {
-      const j = await (await fetch('/api/manual')).json();
+      const j = await (await fetch('/api/manual' + (ML_ASSET === 'stock' && ML_STOCK ? '?stock=' + encodeURIComponent(ML_STOCK) : ''))).json();
       if (!j.ok) throw new Error(j.error || 'No data');
       ML = j; mlRender();
     } catch (e) { mlEl('ml-status').textContent = 'Could not load: ' + e.message; }
   }
-  function mlCoin() { return ML && ML.coins.find(c => c.symbol === ML_COIN) || null; }
+  // the asset picked in the ticket, with its latest price
+  function mlCoin() {
+    if (!ML) return null;
+    if (ML_ASSET === 'crypto') { const c = ML.coins.find(c => c.symbol === ML_COIN); return c ? { ...c, asset: 'crypto', currency: 'USD' } : null; }
+    let s = ML.stocks.find(s => s.symbol === ML_STOCK) || (ML_LOOKUP && ML_LOOKUP.symbol === ML_STOCK ? ML_LOOKUP : null);
+    if (!s) return null;
+    const q = ML.quote && ML.quote.symbol === ML_STOCK ? ML.quote : null;
+    return { ...s, asset: 'stock', price: q ? q.price : s.price, at: q ? q.at : s.at, q };
+  }
+  function mlAsset(a, quiet) {
+    ML_ASSET = a === 'stock' ? 'stock' : 'crypto';
+    try { localStorage.setItem('ml_asset', ML_ASSET); } catch (e) {}
+    mlEl('ml-a-crypto').classList.toggle('on', ML_ASSET === 'crypto'); mlEl('ml-a-stock').classList.toggle('on', ML_ASSET === 'stock');
+    mlEl('ml-qlbl').textContent = ML_ASSET === 'stock' ? 'Stock or ETF' : 'Coin';
+    mlEl('ml-q').placeholder = ML_ASSET === 'stock' ? 'AAPL, TSLA, BHP.AX… or any ticker' : 'Search BTC, ETH, SOL…';
+    const lim = mlLim(), r = mlEl('ml-lev'); r.max = lim.maxLev;
+    mlEl('ml-levchips').innerHTML = (ML_ASSET === 'stock' ? [1, 2, 3, 5] : [2, 5, 10, 20]).map(v => '<button onclick="mlLev(' + v + ')">' + v + 'x</button>').join('');
+    mlLev(Math.min(ML_LEV, lim.maxLev));
+    mlEl('ml-q').value = ''; mlEl('ml-drop').classList.remove('open');
+    if (!quiet) { mlMsg('', true); mlLoad(); }
+    mlRender();
+  }
   function mlRender() {
     if (!ML) return;
-    if (!ML_COIN && ML.coins.length) mlPick(ML.coins[0].symbol, true);
-    mlEl('ml-status').textContent = ML.priceAt ? 'Prices ' + mlAgo(ML.priceAt) + ' ago' + (ML.error ? ' · ' + ML.error : '') : (ML.error ? 'Price error: ' + ML.error : 'Loading prices…');
+    if (!ML_COIN && ML.coins.length) ML_COIN = ML.coins[0].symbol;
+    const mk = ML.markets || {};
+    const mkTxt = (k, lbl) => mk[k] ? lbl + ' ' + (mk[k].open ? 'open' : 'closed') : '';
+    mlEl('ml-status').textContent = [ML.priceAt ? 'Crypto prices ' + mlAgo(ML.priceAt) + ' ago' : (ML.error ? 'Price error: ' + ML.error : 'Loading prices…'), mkTxt('US', 'US stocks'), mkTxt('ASX', 'ASX')].filter(Boolean).join(' · ');
     const a = ML.account;
     mlEl('ml-acct').innerHTML = '<div class="ml-acct"><div class="ml-big">Balance<b>' + mlUsd(a.equity) + '</b><span class="' + ptCls(a.pnl) + '" style="font-weight:700">' + ptPct(a.pnlPct) + ' (' + mlUsd(a.pnl, true) + ')</span> since start</div>' +
       '<div>Cash free<b>' + mlUsd(a.cash) + '</b></div><div>In positions<b>' + mlUsd(a.openValue) + '</b></div>' +
@@ -4380,83 +4439,128 @@
       '<div>Win rate <small>(' + a.wins + ' of ' + a.trades + ')</small><b>' + (a.winRate == null ? '—' : a.winRate.toFixed(0) + '%') + '</b></div></div>';
     mlEl('ml-pos-h').textContent = 'Open positions (' + ML.open.length + ')';
     mlEl('ml-pos').innerHTML = ML.open.length ? ML.open.map(t => {
-      const d = t.side === 'long' ? 1 : -1, liqDist = d * (t.livePrice / t.liqPrice - 1) * 100;
-      return '<div class="ml-pos"><div class="ml-pos-h"><span class="t"><a href="' + ptEsc(t.url) + '" target="_blank" rel="noopener">' + ptEsc(t.symbol) + '</a><span class="ml-tag ' + t.side + '">' + t.side.toUpperCase() + ' ' + t.leverage + 'x</span></span>' +
+      const d = t.side === 'long' ? 1 : -1, liqDist = d * (t.livePrice / t.liqPrice - 1) * 100, cur = t.currency || 'USD', stock = t.asset === 'stock', shut = stock && t.marketOpen === false;
+      return '<div class="ml-pos"><div class="ml-pos-h"><span class="t"><a href="' + ptEsc(t.url) + '" target="_blank" rel="noopener">' + ptEsc(t.symbol) + '</a><span class="ml-tag ' + t.side + '">' + t.side.toUpperCase() + ' ' + t.leverage + 'x</span>' + mlTag(t) + '</span>' +
         '<div class="ml-pnl ' + ptCls(t.upnl) + '">' + mlUsd(t.upnl, true) + '<div class="mk-aud">' + ptPct(t.pnlPct) + ' of margin</div></div></div>' +
-        '<div class="ml-pos-g"><div>Entry<b>' + mlPx(t.entryPrice) + '</b></div><div>Now<b class="' + ptCls(t.movePct) + '">' + mlPx(t.livePrice) + '</b>' + ptPct((t.livePrice / t.entryPrice - 1) * 100) + ' since entry</div>' +
+        '<div class="ml-pos-g"><div>Entry<b>' + mlPx(t.entryPrice, cur, stock) + '</b></div><div>Now<b class="' + ptCls(t.movePct) + '">' + mlPx(t.livePrice, cur, stock) + '</b>' + ptPct((t.livePrice / t.entryPrice - 1) * 100) + (stock ? ' · ' + (shut ? 'last price' : mlAgo(t.priceAt) + ' old') : ' since entry') + '</div>' +
         '<div>Size<b>' + mlUsd(t.notional) + '</b></div><div>Margin<b>' + mlUsd(t.margin) + '</b></div>' +
-        '<div>Liquidation<b class="pt-down">' + mlPx(t.liqPrice) + '</b>' + Math.abs(liqDist).toFixed(1) + '% away</div><div>Take profit<b>' + (t.takeProfit ? mlPx(t.takeProfit) : '—') + '</b></div>' +
-        '<div>Stop loss<b>' + (t.stopLoss ? mlPx(t.stopLoss) : '—') + '</b></div><div>Held<b>' + mlAgo(t.openedAt) + '</b>' + (Math.abs(t.funding || 0) >= 0.005 ? 'funding ' + mlUsd(-t.funding, true) : '') + '</div></div>' +
-        '<div class="ml-acts"><button onclick="mlClose(\'' + ptEsc(t.id) + '\',25)">Close 25%</button><button onclick="mlClose(\'' + ptEsc(t.id) + '\',50)">Close 50%</button><button class="all" onclick="mlClose(\'' + ptEsc(t.id) + '\',100)">Close</button></div></div>';
-    }).join('') : '<div class="pt-empty">No open positions. Pick a coin and open a trade.</div>';
+        '<div>Liquidation<b class="pt-down">' + mlPx(t.liqPrice, cur, stock) + '</b>' + Math.abs(liqDist).toFixed(1) + '% away</div><div>Take profit<b>' + (t.takeProfit ? mlPx(t.takeProfit, cur, stock) : '—') + '</b></div>' +
+        '<div>Stop loss<b>' + (t.stopLoss ? mlPx(t.stopLoss, cur, stock) : '—') + '</b></div><div>Held<b>' + mlAgo(t.openedAt) + '</b>' + (Math.abs(t.funding || 0) >= 0.005 ? (stock ? 'financing ' : 'funding ') + mlUsd(-t.funding, true) : '') + '</div></div>' +
+        (shut ? '<div class="ml-closed">Market closed · opens in ' + mlIn(t.opensAt) + ' (' + mlSyd(t.opensAt) + ' Sydney). Stops and closing resume then; a gap fills at the opening price.</div>' : '') +
+        '<div class="ml-acts"><button ' + (shut ? 'disabled ' : '') + 'onclick="mlClose(\'' + ptEsc(t.id) + '\',25)">Close 25%</button><button ' + (shut ? 'disabled ' : '') + 'onclick="mlClose(\'' + ptEsc(t.id) + '\',50)">Close 50%</button><button ' + (shut ? 'disabled ' : '') + 'class="all" onclick="mlClose(\'' + ptEsc(t.id) + '\',100)">Close</button></div></div>';
+    }).join('') : '<div class="pt-empty">No open positions. Pick a coin or stock and open a trade.</div>';
     mlEl('ml-hist-h').textContent = 'History (' + a.trades + ')';
-    mlEl('ml-hist').innerHTML = ML.closed.length ? '<table class="mk-table ml-hist"><thead><tr><th>Coin</th><th class="ml-hide-sm">Why closed</th><th class="ml-hide-sm">Entry</th><th class="ml-hide-sm">Exit</th><th>P/L</th><th>When</th></tr></thead><tbody>' +
-      ML.closed.map(t => '<tr><td><b>' + ptEsc(t.symbol) + '</b><small><span class="' + (t.side === 'long' ? 'pt-up' : 'pt-down') + '">' + t.side.toUpperCase() + '</span> ' + t.leverage + 'x · ' + mlUsd(t.margin) + (t.partial ? ' · ' + ptEsc(t.partial) : '') + '</small></td>' +
-        '<td style="text-align:left" class="ml-hide-sm"><span class="' + mlRc(t.reason) + '">' + ptEsc(t.reason) + '</span></td>' +
-        '<td class="ml-hide-sm">' + mlPx(t.entryPrice) + '</td><td class="ml-hide-sm">' + mlPx(t.exitPrice) + '</td>' +
-        '<td class="' + ptCls(t.pnl) + '"><b>' + mlUsd(t.pnl, true) + '</b><small>' + ptPct(t.pnlPct) + '<span class="ml-show-sm ' + mlRc(t.reason) + '"> · ' + ptEsc(t.reason) + '</span></small></td><td>' + mlAgo(t.exitAt) + ' ago<small>held ' + mlAgo(Date.now() - (t.exitAt - t.openedAt)) + '</small></td></tr>').join('') + '</tbody></table>'
+    mlEl('ml-hist').innerHTML = ML.closed.length ? '<table class="mk-table ml-hist"><thead><tr><th>Asset</th><th class="ml-hide-sm">Why closed</th><th class="ml-hide-sm">Entry</th><th class="ml-hide-sm">Exit</th><th>P/L</th><th class="ml-hide-sm">When</th></tr></thead><tbody>' +
+      ML.closed.map(t => '<tr><td><b>' + ptEsc(t.symbol) + '</b> ' + mlTag(t) + '<small><span class="' + (t.side === 'long' ? 'pt-up' : 'pt-down') + '">' + t.side.toUpperCase() + '</span> ' + t.leverage + 'x · ' + mlUsd(t.margin) + (t.partial ? ' · ' + ptEsc(t.partial) : '') + '</small></td>' +
+        '<td style="text-align:left" class="ml-hide-sm"><span class="' + mlRc(t.reason) + '">' + ptEsc(t.reason) + '</span>' + (t.gapFrom ? '<small>gapped past ' + mlPx(t.gapFrom, t.currency, true) + '</small>' : '') + '</td>' +
+        '<td class="ml-hide-sm">' + mlPx(t.entryPrice, t.currency, t.asset === 'stock') + '</td><td class="ml-hide-sm">' + mlPx(t.exitPrice, t.currency, t.asset === 'stock') + '</td>' +
+        '<td class="' + ptCls(t.pnl) + '"><b>' + mlUsd(t.pnl, true) + '</b><small>' + ptPct(t.pnlPct) + '<span class="ml-show-sm ' + mlRc(t.reason) + '"> · ' + ptEsc(t.reason) + '</span></small></td><td class="ml-hide-sm">' + mlAgo(t.exitAt) + ' ago<small>held ' + mlAgo(Date.now() - (t.exitAt - t.openedAt)) + '</small></td></tr>').join('') + '</tbody></table>'
       : '<div class="pt-empty">No closed trades yet.</div>';
-    const q = mlEl('ml-q'); if (q && document.activeElement !== q && mlCoin()) q.value = mlCoin().symbol + ' · ' + mlCoin().name;
+    const q = mlEl('ml-q'), c = mlCoin(); if (q && document.activeElement !== q && c) q.value = c.symbol + ' · ' + c.name;
     mlCalc();
   }
   function mlFilter() {
     if (!ML) return;
-    const q = mlEl('ml-q').value.trim().toLowerCase(), c0 = mlCoin();
+    const raw = mlEl('ml-q').value.trim(), q = raw.toLowerCase(), c0 = mlCoin();
     const all = !q || (c0 && q === (c0.symbol + ' · ' + c0.name).toLowerCase());
-    const list = ML.coins.filter(c => all || c.symbol.toLowerCase().startsWith(q) || c.name.toLowerCase().includes(q)).slice(0, 80);
-    mlEl('ml-drop').innerHTML = list.length ? list.map((c, i) => '<div class="' + (i === 0 && !all ? 'hl' : '') + '" onmousedown="event.preventDefault();mlPick(\'' + ptEsc(c.symbol) + '\')"><span><b>' + ptEsc(c.symbol) + '</b> <span style="color:var(--muted)">' + ptEsc(c.name) + '</span></span><small>' + mlPx(c.price) + '</small></div>').join('') : '<div style="color:var(--muted)">No match in the top 50</div>';
+    const match = c => all || c.symbol.toLowerCase().startsWith(q) || c.name.toLowerCase().includes(q);
+    const row = (c, hl) => '<div class="' + (hl ? 'hl' : '') + '" onmousedown="event.preventDefault();mlPick(\'' + ptEsc(c.symbol) + '\')"><span><b>' + ptEsc(c.symbol) + '</b> <span style="color:var(--muted)">' + ptEsc(c.name) + '</span></span><small>' + (c.price ? mlPx(c.price, c.currency, ML_ASSET === 'stock') : (c.currency || '')) + '</small></div>';
+    let h;
+    if (ML_ASSET === 'crypto') {
+      const list = ML.coins.filter(match).slice(0, 80);
+      h = list.length ? list.map((c, i) => row(c, i === 0 && !all)).join('') : '<div style="color:var(--muted)">No match in the top 50</div>';
+    } else {
+      const list = ML.stocks.filter(match), us = list.filter(s => s.market === 'US'), asx = list.filter(s => s.market === 'ASX');
+      h = (us.length ? '<div class="ml-grp">US shares and ETFs · US$</div>' + us.map((c, i) => row(c, i === 0 && !all)).join('') : '') +
+        (asx.length ? '<div class="ml-grp">ASX · A$</div>' + asx.map((c, i) => row(c, !us.length && i === 0 && !all)).join('') : '');
+      const t = raw.toUpperCase().replace(/\s+/g, '');
+      if (!all && /^[A-Z0-9][A-Z0-9.\-]{0,11}$/.test(t) && !ML.stocks.some(s => s.symbol === t)) h += '<div onmousedown="event.preventDefault();mlLookup(\'' + ptEsc(t) + '\')"><span>Look up <b>' + ptEsc(t) + '</b> on Yahoo Finance</span><small>US or ASX (.AX)</small></div>';
+      if (!h) h = '<div style="color:var(--muted)">No match</div>';
+    }
+    mlEl('ml-drop').innerHTML = h;
     mlEl('ml-drop').classList.add('open');
+  }
+  async function mlLookup(sym) {
+    mlEl('ml-drop').classList.remove('open'); mlMsg('Looking up ' + sym + '…', true);
+    try {
+      const j = await (await fetch('/api/manual/lookup?symbol=' + encodeURIComponent(sym))).json();
+      if (!j.ok) throw new Error(j.error);
+      ML_LOOKUP = { ...j.stock, price: j.quote.price, at: j.quote.at };
+      if (ML && !ML.stocks.some(s => s.symbol === j.stock.symbol)) ML.stocks.push(ML_LOOKUP);
+      mlMsg('Found ' + j.stock.symbol + ' (' + j.stock.name + ').', true); mlPick(j.stock.symbol);
+    } catch (e) { mlMsg(e.message); }
   }
   function mlKey(e) {
     if (e.key === 'Escape') { mlEl('ml-drop').classList.remove('open'); e.target.blur(); }
-    if (e.key === 'Enter') { const q = e.target.value.trim().toLowerCase(); const c = ML && ML.coins.find(c => c.symbol.toLowerCase().startsWith(q) || c.name.toLowerCase().includes(q)); if (c) mlPick(c.symbol); e.target.blur(); }
+    if (e.key === 'Enter') {
+      const q = e.target.value.trim().toLowerCase(), list = ML ? (ML_ASSET === 'stock' ? ML.stocks : ML.coins) : [];
+      const c = list.find(c => c.symbol.toLowerCase() === q) || list.find(c => c.symbol.toLowerCase().startsWith(q) || c.name.toLowerCase().includes(q));
+      if (c) mlPick(c.symbol); else if (ML_ASSET === 'stock' && q) mlLookup(q.toUpperCase());
+      e.target.blur();
+    }
   }
-  function mlPick(sym, quiet) {
-    ML_COIN = sym; const c = mlCoin();
+  function mlPick(sym) {
+    if (ML_ASSET === 'stock') { const changed = ML_STOCK !== sym; ML_STOCK = sym; if (changed) mlLoad(); } else ML_COIN = sym;
+    const c = mlCoin();
     mlEl('ml-drop').classList.remove('open');
     if (c) mlEl('ml-q').value = c.symbol + ' · ' + c.name;
-    if (!quiet) mlEl('ml-q').blur();
+    mlEl('ml-q').blur();
     mlCalc();
   }
   function mlSide(s) { ML_SIDE = s; mlEl('ml-long').classList.toggle('on', s === 'long'); mlEl('ml-short').classList.toggle('on', s === 'short'); mlCalc(); }
   function mlLev(v) {
-    ML_LEV = Math.max(1, Math.min(20, Math.round(+v || 1)));
+    const lim = mlLim();
+    ML_LEV = Math.max(1, Math.min(lim.maxLev, Math.round(+v || 1)));
     mlEl('ml-lev').value = ML_LEV; mlEl('ml-levv').textContent = ML_LEV + 'x';
     mlEl('ml-levchips').querySelectorAll('button').forEach(b => b.classList.toggle('on', parseInt(b.textContent, 10) === ML_LEV));
     mlCalc();
   }
   function mlPct(p) {
     if (!ML) return;
-    const fee = ML.settings.feePct / 100, m = Math.floor(ML.account.cash * p / 100 / (1 + ML_LEV * fee) * 100) / 100;
+    const fee = mlLim().feePct / 100, m = Math.floor(ML.account.cash * p / 100 / (1 + ML_LEV * fee) * 100) / 100;
     mlEl('ml-margin').value = Math.max(0, m); mlCalc();
   }
-  function mlUnit(k) { ML_UNIT[k] = ML_UNIT[k] === 'pct' ? 'price' : 'pct'; mlEl('ml-' + k + 'u').textContent = ML_UNIT[k] === 'pct' ? '%' : '$'; mlCalc(); }
+  function mlUnit(k) { ML_UNIT[k] = ML_UNIT[k] === 'pct' ? 'price' : 'pct'; mlEl('ml-' + k + 'u').textContent = ML_UNIT[k] === 'pct' ? '%' : mlCur((mlCoin() || {}).currency); mlCalc(); }
   // same maths as the server (manual.js preview), for the live summary before you confirm
   function mlPreview() {
     const c = mlCoin(); if (!c || !ML) return null;
-    const S = ML.settings, fee = S.feePct / 100, mmr = S.mmrPct / 100, d = ML_SIDE === 'long' ? 1 : -1, price = c.price;
+    const L = mlLim(), fee = L.feePct / 100, mmr = L.mmrPct / 100, d = ML_SIDE === 'long' ? 1 : -1, price = c.price;
+    const fx = c.asset === 'stock' ? (ML.fx || {})[c.currency] || (c.currency === 'USD' ? 1 : null) : 1;
     const margin = parseFloat(mlEl('ml-margin').value), lev = ML_LEV;
-    if (!(price > 0) || !(margin > 0)) return { c, price, margin, lev, bad: true };
-    const notional = margin * lev, qty = notional / price, openFee = notional * fee, liq = Math.max(0, price * (1 - d * (1 / lev - mmr)));
+    if (!(price > 0) || !(margin > 0) || !fx) return { c, price, margin, lev, bad: true };
+    const notional = margin * lev, qty = notional / (price * fx), openFee = notional * fee, liq = Math.max(0, price * (1 - d * (1 / lev - mmr)));
     const lvl = (k, sgn) => { const v = parseFloat(mlEl('ml-' + k).value); if (!(v > 0)) return null; return ML_UNIT[k] === 'pct' ? price * (1 + d * sgn * v / 100) : v; };
-    const tp = lvl('tp', 1), sl = lvl('sl', -1), pnlAt = p => p == null ? null : d * qty * (p - price) - openFee - qty * p * fee;
-    return { c, price, margin, lev, notional, qty, openFee, closeFee: notional * fee, cost: margin + openFee, liq, liqMove: (1 / lev - mmr) * 100, tp, sl, tpPnl: pnlAt(tp), slPnl: pnlAt(sl), d };
+    const tp = lvl('tp', 1), sl = lvl('sl', -1), pnlAt = p => p == null ? null : (d * qty * (p - price) - qty * p * fee) * fx - openFee;
+    return { c, price, margin, lev, notional, qty, openFee, closeFee: notional * fee, cost: margin + openFee, liq, liqMove: (1 / lev - mmr) * 100, tp, sl, tpPnl: pnlAt(tp), slPnl: pnlAt(sl), d,
+      night: c.asset === 'stock' ? notional * ML.settings.stock.financePct / 100 : null };
+  }
+  // market state line for a stock: open/closed, times in Sydney, price age
+  function mlMarket(c) {
+    const q = c && c.q; if (!q) return { text: c ? 'Loading ' + c.symbol + '…' : '', open: false };
+    const st = q.state, name = q.market === 'ASX' ? 'ASX' : 'US market';
+    if (!st.open) return { open: false, text: name + ' closed, opens in ' + mlIn(st.opensAt) + ' (' + mlSyd(st.opensAt) + ' Sydney time)' };
+    const age = q.at ? ' · price ' + mlAgo(q.at) + ' old' : '';
+    return { open: !q.problem, text: name + ' open until ' + new Date(st.closesAt).toLocaleTimeString('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit' }) + ' Sydney time' + age + (q.problem ? ' · ' + q.problem : '') };
   }
   function mlCalc() {
-    const p = mlPreview(), go = mlEl('ml-go');
+    const p = mlPreview(), go = mlEl('ml-go'), mkEl = mlEl('ml-mkt');
     go.className = 'ml-go' + (ML_SIDE === 'short' ? ' short' : '');
-    if (!p) { mlEl('ml-sum').innerHTML = ''; go.disabled = true; return; }
-    mlEl('ml-sel').textContent = p.c.symbol + ' now ' + mlPx(p.price) + (ML && ML.priceAt ? ' (Binance, ' + mlAgo(ML.priceAt) + ' ago)' : '');
-    go.textContent = 'Open ' + ML_SIDE + ' ' + p.c.symbol + ' ' + p.lev + 'x';
-    if (p.bad) { mlEl('ml-sum').innerHTML = '<span>Enter a margin</span><b></b>'; go.disabled = true; return; }
+    if (!p) { mlEl('ml-sum').innerHTML = ''; mkEl.style.display = 'none'; go.disabled = true; return; }
+    const stock = p.c.asset === 'stock', cur = p.c.currency;
+    mlEl('ml-sel').textContent = p.c.symbol + ' now ' + mlPx(p.price, cur, stock) + (stock ? (cur === 'AUD' ? ' (A$, Yahoo Finance)' : ' (Yahoo Finance)') : ML && ML.priceAt ? ' (Binance, ' + mlAgo(ML.priceAt) + ' ago)' : '');
+    let mkt = null;
+    if (stock) { mkt = mlMarket(p.c); mkEl.textContent = mkt.text; mkEl.className = 'ml-mkt ' + (mkt.open ? 'open' : 'shut'); mkEl.style.display = ''; } else mkEl.style.display = 'none';
+    go.textContent = (stock && mkt && !mkt.open && p.c.q && !p.c.q.state.open) ? 'Market closed' : 'Open ' + ML_SIDE + ' ' + p.c.symbol + ' ' + p.lev + 'x';
+    if (p.bad) { mlEl('ml-sum').innerHTML = '<span>' + (p.price > 0 ? 'Enter a margin' : 'Waiting for a price') + '</span><b></b>'; go.disabled = true; return; }
     const warn = (p.tp != null && p.d * (p.tp - p.price) <= 0) ? 'Take profit is on the wrong side of the price' : (p.sl != null && p.d * (p.price - p.sl) <= 0) ? 'Stop loss is on the wrong side of the price' : (p.sl != null && p.d * (p.sl - p.liq) <= 0) ? 'Stop loss is past liquidation' : p.cost > ML.account.cash + 1e-9 ? 'Not enough cash' : '';
     const row = (k, v, cls) => '<span>' + k + '</span><b' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</b>';
-    mlEl('ml-sum').innerHTML = row('Entry (about)', mlPx(p.price)) + row('Position size', mlUsd(p.notional) + ' <span style="color:var(--muted)">(' + (+p.qty.toPrecision(4)).toLocaleString() + ' ' + ptEsc(p.c.symbol) + ')</span>') +
-      row('Liquidation', mlPx(p.liq) + ' <span style="color:var(--muted)">' + (p.d > 0 ? '−' : '+') + p.liqMove.toFixed(1) + '%</span>', 'pt-down') +
-      row('Fees', mlUsd(p.openFee) + ' open + ' + mlUsd(p.closeFee) + ' close') + row('Cash needed', mlUsd(p.cost) + ' <span style="color:var(--muted)">of ' + mlUsd(ML.account.cash) + '</span>', p.cost > ML.account.cash ? 'pt-down' : '') +
-      (p.tp != null ? row('Take profit', mlPx(p.tp) + ' → ' + mlUsd(p.tpPnl, true), 'pt-up') : '') + (p.sl != null ? row('Stop loss', mlPx(p.sl) + ' → ' + mlUsd(p.slPnl, true), 'pt-down') : '') +
+    mlEl('ml-sum').innerHTML = row('Entry (about)', mlPx(p.price, cur, stock)) + row('Position size', mlUsd(p.notional) + ' <span style="color:var(--muted)">(' + (+p.qty.toPrecision(4)).toLocaleString() + (stock ? ' shares' : ' ' + ptEsc(p.c.symbol)) + ')</span>') +
+      row('Liquidation', mlPx(p.liq, cur, stock) + ' <span style="color:var(--muted)">' + (p.d > 0 ? '−' : '+') + p.liqMove.toFixed(1) + '%</span>', 'pt-down') +
+      row('Fees (open + close)', mlUsd(p.openFee) + ' + ' + mlUsd(p.closeFee)) + (stock ? row('Financing', mlUsd(p.night) + ' per night') : '') +
+      row('Cash needed', mlUsd(p.cost) + ' <span style="color:var(--muted)">of ' + mlUsd(ML.account.cash) + '</span>', p.cost > ML.account.cash ? 'pt-down' : '') +
+      (p.tp != null ? row('Take profit', mlPx(p.tp, cur, stock) + ' → ' + mlUsd(p.tpPnl, true), 'pt-up') : '') + (p.sl != null ? row('Stop loss', mlPx(p.sl, cur, stock) + ' → ' + mlUsd(p.slPnl, true), 'pt-down') : '') +
       (warn ? '<span class="pt-down" style="grid-column:1/-1">' + warn + '</span>' : '');
-    go.disabled = !!warn || ML_BUSY;
+    go.disabled = !!warn || ML_BUSY || (stock && !(mkt && mkt.open));
   }
   async function mlPost(path, body) {
     const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Cipher': '1' }, body: JSON.stringify(body || {}) });
@@ -4467,16 +4571,17 @@
   function mlMsg(t, ok) { const m = mlEl('ml-msg'); m.textContent = t; m.className = 'ml-msg ' + (ok ? 'ok' : 'err'); }
   async function mlOpen() {
     const p = mlPreview(); if (!p || p.bad || ML_BUSY) return;
-    const lines = ['Open ' + ML_SIDE.toUpperCase() + ' ' + p.c.symbol + ' at ' + p.lev + 'x?', '', 'Entry: about ' + mlPx(p.price) + ' (filled at the live price)', 'Position size: ' + mlUsd(p.notional) + ' (margin ' + mlUsd(p.margin) + ')',
-      'Liquidation: about ' + mlPx(p.liq), 'Fees: ' + mlUsd(p.openFee) + ' to open, about ' + mlUsd(p.closeFee) + ' to close',
-      'Take profit: ' + (p.tp != null ? mlPx(p.tp) : 'none'), 'Stop loss: ' + (p.sl != null ? mlPx(p.sl) : 'none'), '', 'Paper money only.'];
+    const cur = p.c.currency, stock = p.c.asset === 'stock';
+    const lines = ['Open ' + ML_SIDE.toUpperCase() + ' ' + p.c.symbol + (stock ? ' (stock)' : '') + ' at ' + p.lev + 'x?', '', 'Entry: about ' + mlPx(p.price, cur, stock) + ' (filled at the live price)', 'Position size: ' + mlUsd(p.notional) + ' (margin ' + mlUsd(p.margin) + ')',
+      'Liquidation: about ' + mlPx(p.liq, cur, stock), 'Fees: ' + mlUsd(p.openFee) + ' to open, about ' + mlUsd(p.closeFee) + ' to close'].concat(stock ? ['Financing: about ' + mlUsd(p.night) + ' per night held'] : []).concat([
+      'Take profit: ' + (p.tp != null ? mlPx(p.tp, cur, stock) : 'none'), 'Stop loss: ' + (p.sl != null ? mlPx(p.sl, cur, stock) : 'none'), '', 'Paper money only.']);
     if (!confirm(lines.join('\n'))) return;
     ML_BUSY = true; mlCalc(); mlMsg('Opening…', true);
     try {
       const tpv = mlEl('ml-tp').value, slv = mlEl('ml-sl').value;
-      const j = await mlPost('/api/manual/open', { symbol: p.c.symbol, side: ML_SIDE, leverage: p.lev, margin: p.margin,
+      const j = await mlPost('/api/manual/open', { asset: p.c.asset, symbol: p.c.symbol, side: ML_SIDE, leverage: p.lev, margin: p.margin,
         tp: tpv ? { type: ML_UNIT.tp, value: tpv } : null, sl: slv ? { type: ML_UNIT.sl, value: slv } : null });
-      mlMsg('Opened ' + ML_SIDE + ' ' + p.c.symbol + ' ' + p.lev + 'x at ' + mlPx(j.position.entryPrice) + '.', true);
+      mlMsg('Opened ' + ML_SIDE + ' ' + p.c.symbol + ' ' + p.lev + 'x at ' + mlPx(j.position.entryPrice, cur, stock) + '.', true);
       mlEl('ml-tp').value = ''; mlEl('ml-sl').value = '';
       ML = j;
     } catch (e) { mlMsg(e.message); }
