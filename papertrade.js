@@ -14,15 +14,32 @@ const START_BALANCE = 1000;      // US$ per strategy
 const POSITION_USD = 100;        // US$ per trade (a strategy can set its own positionUsd)
 const MAX_OPEN = 8;              // per strategy
 const TAKE_PROFIT = 0.50;        // +50%
-const STOP_LOSS = -0.25;         // -25%
-const BE_TRIGGER = 0.15;         // once a trade has been up 15%, the stop moves up to break-even
-const TRAIL = 0.20;              // ...and then trails 20% below the highest price seen (it never moves down)
+const STOP_LOSS = -0.20;         // -20% (was -25%; cuts a loser 5 points earlier without being tighter than a typical meme wick)
+const BE_TRIGGER = 0.08;         // once a trade has been up 8%, the stop moves up to break-even (was 15%; WASTED peaked +11.7% then bled)
+const TRAIL = 0.12;              // then trails 12% below the highest price seen (was 20%; it never moves down)
+const TRAIL_TIGHT = 0.10;        // once the peak is +25%, trail tightens to 10% so big runners don't give it all back
+const TRAIL_TIGHT_AT = 0.25;
 const COOLDOWN_H = 24;           // after a stop-out at a loss, that strategy won't buy the coin (or a same-ticker copy) for 24 h
 const STOP_REASONS = ['Stop loss', 'Break-even stop', 'Trailing stop'];
+const CHART_EXIT_REASONS = [
+  'Dead chart: volume dried up',
+  'Momentum broke down',
+  'Dead chart: still bleeding on the daily',
+  'Stalled trade: no progress after 6 h',
+  'No price for 30 min, written off',
+];
+const COOLDOWN_REASONS = STOP_REASONS.concat(CHART_EXIT_REASONS);
 const symKey = sym => 'sym:' + String(sym || '').trim().toLowerCase();
 const RECOUP_AT = 1.00;         // recoup strategy: sell half at +100% to get the stake back
 const RUNNER_TP = 2.00;         // recoup strategy: sell the rest at +200%
-const MAX_HOLD_H = 48;           // close stale trades so fake money isn't stuck forever
+const MAX_HOLD_H = 48;           // last-resort close so fake money isn't stuck forever
+const STALE_HOLD_H = 6;          // if a meme trade is still red or flat after 6 h, free the capital
+const NO_PRICE_MIN = 30;         // write off a trade if DexScreener has no price for this many minutes (was 48 h)
+const VOL_DEAD_FRAC = 0.25;      // 1 h volume has collapsed to 25% of what it was at entry
+const VOL_DEAD_ABS = 5000;       // ...or is under US$5k — a dead tape even if entry volume was already low
+const SELL_PRESSURE = 1.5;       // 1 h sells at least 1.5x buys, while underwater
+const SELL_PRESSURE_MIN = 20;    // ignore noisy ratios from a handful of trades
+const CHART_EXIT_EVERY_MS = 15 * 60e3; // GeckoTerminal candle re-check for open trades, at most every 15 min
 const COST = 0.01;               // 1% simulated swap fee + slippage on each side
 const BE_LEVEL = 1 / ((1 - COST) ** 2); // break-even price as a multiple of entry (about +2%), so a stop there nets about US$0 after both fees
 // popular Solana meme searches, so already-trending coins get found too (not just new listings)
@@ -213,12 +230,12 @@ const STRATS = {
   },
   trending: {
     name: 'Trending coins',
-    rule: 'US$100 per trade. Pair over 24 h old, liquidity at least US$50k, 24 h volume at least US$250k, up 5% to 60% in the last hour and up over the last 6 h, more buys than sells in the last hour.',
+    rule: 'US$100 per trade. Pair over 24 h old, liquidity at least US$50k, 24 h volume at least US$250k and 1 h volume at least US$25k (so we skip dead-cat bounces on bled-out charts with leftover daily volume), up 5% to 60% in the last hour and up over the last 6 h, not down more than 20% over the last 24 h, more buys than sells in the last hour. Sells on the shared tight stops and cuts a dead, fading or stalled chart instead of waiting 48 h.',
     pick(p, ageH) {
       const liq = p.liquidity?.usd || 0, t1 = p.txns?.h1 || {};
-      const ch1 = p.priceChange?.h1 ?? 0, ch6 = p.priceChange?.h6 ?? 0;
-      return ageH >= 24 && liq >= 50000 && (p.volume?.h24 || 0) >= 250000 &&
-        ch1 >= 5 && ch1 <= 60 && ch6 > 0 && t1.buys > t1.sells;
+      const ch1 = p.priceChange?.h1 ?? 0, ch6 = p.priceChange?.h6 ?? 0, ch24 = p.priceChange?.h24 ?? 0;
+      return ageH >= 24 && liq >= 50000 && (p.volume?.h24 || 0) >= 250000 && (p.volume?.h1 || 0) >= 25000 &&
+        ch1 >= 5 && ch1 <= 60 && ch6 > 0 && ch24 > -20 && t1.buys > t1.sells;
     },
   },
   chart: {
@@ -231,7 +248,7 @@ const STRATS = {
     name: 'Copy smart wallets',
     kind: 'copy',
     positionUsd: 50,
-    rule: 'Added 22 Nov, US$50 per trade. Watches 10 to 30 Solana wallets that we scored ourselves from their recent on-chain swaps: at least 55% of closed trades in profit, at least 20 closed trades, positive realised P/L, and not a bot (under 300 transactions a day). Buys when 2 or more watched wallets buy the same coin within 30 minutes, or 1 wallet with a very strong record (75%+ wins over 40+ trades). Skips it if the price is already up more than 50% since the first wallet bought. The coin must still pass the socials and RugCheck checks and the 24 h no-rebuy rule. Sells like the other meme strategies (stop -25%, break-even at +15%, then a 20% trailing stop, take profit +50%), and also sells when most of the wallets it copied have sold. Wallets that turn bad on a re-check are dropped.',
+    rule: 'Added 22 Nov, US$50 per trade. Watches 10 to 30 Solana wallets that we scored ourselves from their recent on-chain swaps: at least 55% of closed trades in profit, at least 20 closed trades, positive realised P/L, and not a bot (under 300 transactions a day). Buys when 2 or more watched wallets buy the same coin within 30 minutes, or 1 wallet with a very strong record (75%+ wins over 40+ trades). Skips it if the price is already up more than 50% since the first wallet bought. The coin must still pass the socials and RugCheck checks and the 24 h no-rebuy rule. Sells like the other meme strategies (stop -20%, break-even at +8%, then a 12% trailing stop that tightens to 10% after a +25% peak, take profit +50%, and it cuts a dead or stalled chart), and also sells when most of the wallets it copied have sold. Wallets that turn bad on a re-check are dropped.',
   },
   lev: {
     name: 'Leverage 5x (top 50)',
@@ -322,25 +339,78 @@ async function pairsFor(addrs) {
   return best;
 }
 
-// ---------- Stops ----------
-// Starts at -25%. Once the price has been 15% above entry, the stop jumps to break-even (entry plus the two 1% fees,
-// so selling there nets about US$0). After that it trails 20% below the highest price seen. It only ever moves up.
+// ---------- Stops and chart exits ----------
+// Starts at -20%. Once the price has been 8% above entry, the stop jumps to break-even (entry plus the two 1% fees,
+// so selling there nets about US$0). After that it trails 12% below the highest price seen, tightening to 10% once
+// the peak is +25%. It only ever moves up.
 // Updates t.peak / t.stop / t.stopKind and returns the exit reason if the price is at or below the stop, else null.
+function trailPctFor(t) {
+  return (t.peak / t.entryPrice - 1) >= TRAIL_TIGHT_AT ? TRAIL_TIGHT : TRAIL;
+}
 function updateStop(t, price) {
   t.peak = Math.max(t.peak || t.entryPrice, price);
   const base = t.entryPrice * (1 + STOP_LOSS);
-  if (!t.stop) { t.stop = base; t.stopKind = 'stop'; }
+  if (!t.stop || (t.stopKind === 'stop' && base > t.stop)) { t.stop = base; t.stopKind = 'stop'; }
   if (t.peak >= t.entryPrice * (1 + BE_TRIGGER)) {
-    const be = t.entryPrice * BE_LEVEL, trail = t.peak * (1 - TRAIL);
+    const be = t.entryPrice * BE_LEVEL, trail = t.peak * (1 - trailPctFor(t));
     const lvl = Math.max(be, trail), kind = trail > be ? 'trail' : 'breakeven';
     if (lvl > t.stop) { t.stop = lvl; t.stopKind = kind; }
   }
   if (price > t.stop) return null;
   return t.stopKind === 'trail' ? 'Trailing stop' : t.stopKind === 'breakeven' ? 'Break-even stop' : 'Stop loss';
 }
-// A stop-out at a loss puts the coin (by address, and by ticker so copycat coins with the same ticker are caught too) on a 24 h cooldown.
+// Chart / tape exits from the DexScreener pair we already fetch in checkPrices. Returns an educational reason or null.
+function momentumExit(t, p, now = Date.now()) {
+  if (!t || !p || !(t.entryPrice > 0)) return null;
+  const price = +p.priceUsd;
+  if (!(price > 0)) return null;
+  const ch = price / t.entryPrice - 1;
+  const ageH = (now - t.openedAt) / 3600e3;
+  const vol1h = p.volume?.h1 || 0;
+  const entryVol = (t.entry && t.entry.vol1h) || 0;
+  const t1 = p.txns?.h1 || {};
+  const buys = t1.buys || 0, sells = t1.sells || 0;
+  const ch1 = p.priceChange?.h1, ch6 = p.priceChange?.h6, ch24 = p.priceChange?.h24;
+  // Dead tape: after an hour, volume has collapsed or is absolutely thin, and the trade isn't running.
+  if (ageH >= 1 && ch < 0.08) {
+    if ((entryVol > 0 && vol1h < entryVol * VOL_DEAD_FRAC) || vol1h < VOL_DEAD_ABS) return 'Dead chart: volume dried up';
+  }
+  // Sellers in control while underwater.
+  if (ageH >= 0.5 && ch < 0 && sells >= SELL_PRESSURE_MIN && sells >= buys * SELL_PRESSURE) return 'Momentum broke down';
+  // 1 h and 6 h both down, still red, after 2 h — the bounce is over.
+  if (ageH >= 2 && ch < 0 && ch1 != null && ch6 != null && ch1 <= 0 && ch6 <= 0) return 'Momentum broke down';
+  // Older pairs still bleeding on the daily: classic dead-cat that already faded (need 30 min so a fresh bounce can print).
+  const pairAgeH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 3600e3 : 99;
+  if (pairAgeH >= 24 && ageH >= 0.5 && ch < 0 && ch24 != null && ch24 <= -25 && (ch1 == null || ch1 <= 0)) return 'Dead chart: still bleeding on the daily';
+  if (ageH >= STALE_HOLD_H && ch < 0.03) return 'Stalled trade: no progress after 6 h';
+  return null;
+}
+// Optional 15 min candle confirmation (GeckoTerminal). Does not cut a trade that is still running (>= +8%).
+function candleExit(t, candles) {
+  if (!t || !candles || candles.length < 30 || !(t.entryPrice > 0)) return null;
+  const closes = candles.map(c => c[4]);
+  const last = closes[closes.length - 1];
+  if (!(last > 0)) return null;
+  const ch = last / t.entryPrice - 1;
+  if (ch >= BE_TRIGGER) return null; // let the trailing / break-even stop handle green trades
+  const ema20 = ind.ema(closes, 20).at(-1);
+  const m = ind.macd(closes);
+  const macdDown = m.line.at(-1) != null && m.signal.at(-1) != null && m.line.at(-1) < m.signal.at(-1);
+  const lowerLows = closes.length >= 4 && closes.at(-1) < closes.at(-2) && closes.at(-2) < closes.at(-3) && closes.at(-3) < closes.at(-4);
+  const belowEma = ema20 != null && last < ema20;
+  const volRatio = ind.volumeTrend(candles.map(c => c[5]));
+  if (belowEma && (macdDown || lowerLows)) return 'Momentum broke down';
+  if (belowEma && ch < 0 && volRatio != null && volRatio < 0.5) return 'Dead chart: volume dried up';
+  return null;
+}
+function missingPriceExit(t, now = Date.now()) {
+  if (!t.priceMissingSince) return null;
+  if (now - t.priceMissingSince >= NO_PRICE_MIN * 60e3) return 'No price for 30 min, written off';
+  return null;
+}
+// A stop-out or a chart-based exit at a loss puts the coin (by address, and by ticker so copycat coins with the same ticker are caught too) on a 24 h cooldown.
 function noteCooldown(st, t, pnl, now = Date.now()) {
-  if (!STOP_REASONS.includes(t.reason) || !(pnl < 0)) return;
+  if (!COOLDOWN_REASONS.includes(t.reason) || !(pnl < 0)) return;
   st.cooldown = st.cooldown || {};
   const until = now + COOLDOWN_H * 3600e3;
   st.cooldown[t.token] = until;
@@ -457,9 +527,27 @@ async function scan() {
       }
     }
     if (S !== S0) return; // data was reset by another copy mid-scan; don't write the old state back
+    try { await checkOpenCharts(now); } catch (e) { console.warn('[paper] exit chart check failed', e.message); }
     lastScan = now; S.lastScan = now; lastError = null; save();
   } catch (e) { lastError = e.message; console.warn('[paper] scan failed', e.message); }
   finally { scanning = false; }
+}
+
+// Use leftover GeckoTerminal budget after the entry scan (never blocks checkPrices). At most one 15 min
+// candle fetch per open trade every 15 minutes; skipped while the provider is backing off or the budget is used up.
+async function checkOpenCharts(now = Date.now()) {
+  if (Date.now() < gtBackoffUntil) return;
+  const open = Object.entries(S.strategies).filter(([k]) => !(STRATS[k] && STRATS[k].kind === 'lev')).flatMap(([k, st]) => st.open.filter(t => t.pair && !t.recouped).map(t => [k, t]));
+  for (const [k, t] of open) {
+    if (!S.strategies[k].open.includes(t)) continue; // already closed this scan
+    if (t.chartCheckedAt && now - t.chartCheckedAt < CHART_EXIT_EVERY_MS) continue;
+    if (gtUsed >= GT_MAX_PER_SCAN) break;
+    const c15 = await gtCandles('solana', t.pair, 15);
+    if (!c15) break; // out of budget or not yet available; try next scan
+    t.chartCheckedAt = now;
+    const reason = candleExit(t, c15);
+    if (reason) closeTrade(S.strategies[k], t, t.lastPrice || c15[c15.length - 1][4] || 0, reason);
+  }
 }
 
 async function checkPrices() {
@@ -474,13 +562,17 @@ async function checkPrices() {
       const st = S.strategies[k];
       const p = pairs[t.token];
       if (!p || !(+p.priceUsd > 0)) {
-        if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, 0, 'No price, written off');
+        t.priceMissingSince = t.priceMissingSince || now;
+        const gone = missingPriceExit(t, now);
+        if (gone) closeTrade(st, t, t.lastPrice || 0, gone);
         continue;
       }
+      if (t.priceMissingSince) t.priceMissingSince = 0;
       const price = +p.priceUsd, liq = p.liquidity?.usd || 0;
       t.lastPrice = price; t.lastLiq = liq; t.lastAt = now;
       const ch = price / t.entryPrice - 1;
       const stopHit = t.recouped ? null : updateStop(t, price);
+      const chartHit = momentumExit(t, p, now);
       let si = null; // after a recoup, the runner has its own rule below
       if (STRATS[k] && STRATS[k].exit === 'recoup') {
         if (!t.recouped && ch >= RECOUP_AT) {
@@ -491,14 +583,16 @@ async function checkPrices() {
         } else if (t.recouped && ch >= RUNNER_TP) closeTrade(st, t, price, 'Rest sold at +200%');
         else if (t.recouped && ch <= 0) closeTrade(st, t, price, 'Rest sold at buy price');
         else if (!t.recouped && stopHit) closeTrade(st, t, price, stopHit);
-        else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
+        else if (t.entry && t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
+        else if (chartHit) closeTrade(st, t, price, chartHit);
         else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
         continue;
       }
       if (ch >= TAKE_PROFIT) closeTrade(st, t, price, 'Take profit');
       else if (stopHit) closeTrade(st, t, price, stopHit);
       else if (t.copy && (si = copy.soldInfo(t)) && si.majority) closeTrade(st, t, price, 'Copied wallets sold (' + si.sold + ' of ' + si.of + ')');
-      else if (t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
+      else if (t.entry && t.entry.liq > 0 && liq < t.entry.liq * 0.2) closeTrade(st, t, price, 'Liquidity pulled');
+      else if (chartHit) closeTrade(st, t, price, chartHit);
       else if (now - t.openedAt > MAX_HOLD_H * 3600e3) closeTrade(st, t, price, 'Time limit (48 h)');
     }
     lastPrice = now; S.lastPrice = now; save();
@@ -550,7 +644,7 @@ module.exports = function mountPaper(app) {
   app.get('/api/paper', (req, res) => {
     syncFromDisk();
     res.json({ ok: true, started: S.started, safety: SAFETY, skipped: (S.skipped || []).slice(0, 50), skippedCount: S.skippedCount || 0, lastScan: lastScan || S.lastScan || null, lastPrice: lastPrice || S.lastPrice || null, error: lastError,
-      settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, freshPositionUsd: STRATS.fresh.positionUsd, breakEvenAtPct: BE_TRIGGER * 100, trailPct: TRAIL * 100, cooldownH: COOLDOWN_H, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, costPct: COST * 100 },
+      settings: { startBalance: START_BALANCE, positionUsd: POSITION_USD, freshPositionUsd: STRATS.fresh.positionUsd, breakEvenAtPct: BE_TRIGGER * 100, trailPct: TRAIL * 100, trailTightPct: TRAIL_TIGHT * 100, trailTightAtPct: TRAIL_TIGHT_AT * 100, cooldownH: COOLDOWN_H, maxOpen: MAX_OPEN, takeProfitPct: TAKE_PROFIT * 100, recoupPct: RECOUP_AT * 100, runnerPct: RUNNER_TP * 100, stopLossPct: STOP_LOSS * 100, maxHoldH: MAX_HOLD_H, staleHoldH: STALE_HOLD_H, noPriceMin: NO_PRICE_MIN, costPct: COST * 100 },
       strategies: summary() });
   });
   // Reset wipes the fake trades only. A copy of the old file is kept, and the copy-wallets research (scored and watched
@@ -569,6 +663,9 @@ module.exports._socialsCheck = socialsCheck; // used by tests
 module.exports._chartCheck = chartCheck; // used by tests
 module.exports._chartRules = chartRules; // used by tests
 module.exports._updateStop = updateStop; // used by tests
+module.exports._momentumExit = momentumExit; // used by tests
+module.exports._candleExit = candleExit; // used by tests
+module.exports._missingPriceExit = missingPriceExit; // used by tests
 module.exports._closeTrade = closeTrade; // used by tests
 module.exports._onCooldown = onCooldown; // used by tests
 module.exports._pruneCooldowns = pruneCooldowns; // used by tests
